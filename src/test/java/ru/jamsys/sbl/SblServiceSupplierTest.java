@@ -1,17 +1,15 @@
-package ru.jamsys.sbl.supplier;
+package ru.jamsys.sbl;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
-import ru.jamsys.sbl.SblApplication;
-import ru.jamsys.sbl.UtilTest;
 import ru.jamsys.sbl.component.CmpHelper;
 import ru.jamsys.sbl.component.CmpService;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.message.MessageImpl;
-import ru.jamsys.sbl.SblServiceStatistic;
+import ru.jamsys.sbl.thread.SblService;
 
 import java.util.function.Consumer;
 
@@ -36,7 +34,7 @@ class SblServiceSupplierTest {
     }
 
     void run(int countThreadMin, int countThreadMax, long keepAlive, int countIteration, int countMessage, int sleep, Consumer<SblServiceStatistic> fnExpected) {
-        SblServiceSupplier test = context.getBean(CmpService.class).createSupplier("Test", countThreadMin, countThreadMax, keepAlive, MessageImpl::new);
+        SblService test = context.getBean(CmpService.class).instance("Test", countThreadMin, countThreadMax, keepAlive, MessageImpl::new);
         test.setDebug(true);
         test.setTpsInputMax(5);
         UtilTest.sleep(sleep);

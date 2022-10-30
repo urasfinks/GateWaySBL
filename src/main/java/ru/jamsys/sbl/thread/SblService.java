@@ -11,4 +11,9 @@ public interface SblService {
 
     void shutdown();
 
+    void setDebug(boolean b);
+
+    void setTpsInputMax(int tpsInputMax);
+
+    SblServiceStatistic getStatLast();
 }

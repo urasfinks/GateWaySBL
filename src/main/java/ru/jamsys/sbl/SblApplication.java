@@ -14,7 +14,7 @@ public class SblApplication {
         ConfigurableApplicationContext context = SpringApplication.run(SblApplication.class, args);
         context.getBean(CmpStatistic.class).run();
         context.getBean(CmpHelper.class).run();
-        context.getBean(CmpService.class).createConsumer("Test", 1, 10, 60000L, msg ->
+        context.getBean(CmpService.class).instance("Test", 1, 10, 60000L, msg ->
             System.out.println(msg.getCorrelation())
         );
         //GreetingClient greetingClient = context.getBean(GreetingClient.class);

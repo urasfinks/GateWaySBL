@@ -13,6 +13,7 @@ import ru.jamsys.sbl.consumer.SblConsumerShutdownException;
 import ru.jamsys.sbl.consumer.SblConsumerTpsOverflowException;
 import ru.jamsys.sbl.message.Message;
 import ru.jamsys.sbl.message.MessageImpl;
+import ru.jamsys.sbl.thread.SblService;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -70,7 +71,7 @@ class SblServiceConsumerTest {
     void run(int countThreadMin, int countThreadMax, long keepAlive, int countIteration, int countMessage, int sleep, int tpsInputMax, Consumer<SblServiceStatistic> fnExpected) {
         Util.logConsole(Thread.currentThread(), "Start test");
         AtomicInteger c = new AtomicInteger(0);
-        SblServiceConsumer test = context.getBean(CmpService.class).createConsumer("Test", countThreadMin, countThreadMax, keepAlive, (msg) -> {
+        SblService test = context.getBean(CmpService.class).instance("Test", countThreadMin, countThreadMax, keepAlive, (msg) -> {
             try {
                 Thread.sleep(1000);
             } catch (Exception e) {
@@ -94,7 +95,7 @@ class SblServiceConsumerTest {
                 for (int i = 0; i < countMessage; i++) {
                     Message message = new MessageImpl();
                     try {
-                        test.accept(message);
+                        ((SblServiceConsumer) test).accept(message);
                         realInsert.incrementAndGet();
                     } catch (SblConsumerShutdownException | SblConsumerTpsOverflowException e) {
                         System.out.println(e.toString());
