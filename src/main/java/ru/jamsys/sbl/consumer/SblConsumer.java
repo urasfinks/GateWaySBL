@@ -136,35 +136,33 @@ public class SblConsumer {
             threadList.remove(wrapThread);
             threadParkQueue.remove(wrapThread); // На всякий случай
             if (debug) {
-                Util.logConsole("removeThread: " + wrapThread);
+                Util.logConsole(Thread.currentThread(), "removeThread: " + wrapThread);
             }
         }
     }
 
-    public void statistic() { //Пока пришел к мысли, что не надо смешивать статистику и принятие решений увелечений и уменьшению потоков
+    public SblConsumerStatistic statistic() { //Пока пришел к мысли, что не надо смешивать статистику и принятие решений увелечений и уменьшению потоков
         statLast.setTpsInput(tpsInput.getAndSet(0));
         statLast.setTpsIdle(tpsIdle.getAndSet(0));
         statLast.setTpsOutput(tpsOutput.getAndSet(0));
         statLast.setThreadCount(threadList.size());
         statLast.setQueueSize(queueTask.size());
         statLast.setThreadCountPark(threadParkQueue.size());
-        if (debug) {
-            Util.logConsole("Statistic: " + statLast.toString());
-        }
+        return statLast;
     }
 
     public void helper() {
         try {
-            SblConsumerStatistic stat = (SblConsumerStatistic) statLast.clone();
+            SblConsumerStatistic stat = statLast.clone();
             if (debug) {
-                Util.logConsole("Helper: QueueSize: " + stat.getQueueSize() + "; CountThread: " + stat.getThreadCount());
+                Util.logConsole(Thread.currentThread(), "QueueSize: " + stat.getQueueSize() + "; CountThread: " + stat.getThreadCount());
             }
             if (stat.getQueueSize() > 0) { //Если очередь наполнена
                 //Расчет необходимого кол-ва потоков, что бы обработать всю очередь
                 int needCountThread = SblConsumerUtil.getNeedCountThread(stat);
                 if (needCountThread > 0 && threadList.size() < threadCountMax) {
                     if (debug) {
-                        Util.logConsole("Helper: addThread: " + needCountThread);
+                        Util.logConsole(Thread.currentThread(), "addThread: " + needCountThread);
                     }
                     overclocking(needCountThread);
                 }
@@ -180,6 +178,7 @@ public class SblConsumer {
                     } else {
                         wth.getCountIteration().set(0);
                     }
+                    return null;
                 });
             }
         } catch (Exception e) {

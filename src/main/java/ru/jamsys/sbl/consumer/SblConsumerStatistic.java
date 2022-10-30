@@ -12,9 +12,13 @@ public class SblConsumerStatistic implements Cloneable {
     int tpsIdle;
     int threadCountPark;
 
-    @Override
-    public Object clone() throws CloneNotSupportedException {
-        return super.clone();
+    public SblConsumerStatistic clone() {
+        try {
+            return (SblConsumerStatistic) super.clone();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public static SblConsumerStatistic instance(int tpsOutput, int threadCount, int queueSize) {

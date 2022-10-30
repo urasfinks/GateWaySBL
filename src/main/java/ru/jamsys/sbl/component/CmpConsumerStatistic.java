@@ -2,10 +2,12 @@ package ru.jamsys.sbl.component;
 
 import org.springframework.stereotype.Component;
 import ru.jamsys.sbl.CmpConsumerScheduler;
+import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.consumer.SblConsumer;
 
 import javax.annotation.PreDestroy;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Component
 public class CmpConsumerStatistic extends CmpConsumerScheduler {
@@ -32,8 +34,14 @@ public class CmpConsumerStatistic extends CmpConsumerScheduler {
     }
 
     @Override
-    protected Consumer<SblConsumer> getConsumer() {
-        return SblConsumer::statistic;
+    @SuppressWarnings("unchecked")
+    protected <T,R> Function<T,R> getConsumer() {
+        return consumer -> (R) ((SblConsumer) consumer).statistic().clone();
+    }
+
+    @Override
+    protected <T> Consumer<T> getHandler() {
+        return result -> Util.logConsole(Thread.currentThread(), result.toString());
     }
 
     @PreDestroy

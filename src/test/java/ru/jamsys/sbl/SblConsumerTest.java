@@ -27,7 +27,9 @@ class SblConsumerTest {
     static void beforeAll() {
         String[] args = new String[]{};
         context = SpringApplication.run(SblApplication.class, args);
-        context.getBean(CmpConsumerStatistic.class).run();
+        CmpConsumerStatistic cmpConsumerStatistic = context.getBean(CmpConsumerStatistic.class);
+        cmpConsumerStatistic.setDebug(true);
+        cmpConsumerStatistic.run();
         context.getBean(CmpConsumerHelper.class).run();
     }
 
@@ -67,7 +69,7 @@ class SblConsumerTest {
     }
 
     void run(int countThreadMin, int countThreadMax, long keepAlive, int countIteration, int countMessage, int sleep, int tpsInputMax, Consumer<SblConsumerStatistic> fnExpected) {
-        Util.logConsole("Start test");
+        Util.logConsole(Thread.currentThread(), "Start test");
         AtomicInteger c = new AtomicInteger(0);
         SblConsumer test = context.getBean(CmpConsumer.class).instance("Test", countThreadMin, countThreadMax, keepAlive, (msg) -> {
             try {
@@ -95,7 +97,7 @@ class SblConsumerTest {
                     try {
                         test.accept(message);
                         realInsert.incrementAndGet();
-                    }catch (SblConsumerShutdownException | SblConsumerTpsOverflowException e){
+                    } catch (SblConsumerShutdownException | SblConsumerTpsOverflowException e) {
                         System.out.println(e.toString());
                     }
                 }
@@ -109,14 +111,10 @@ class SblConsumerTest {
         t1.start();
         sleep(sleep);
         Assertions.assertEquals(realInsert.get(), c.get(), "Не все задачи были обработаны");
-        try {
-            SblConsumerStatistic clone = (SblConsumerStatistic) test.getStatLast().clone();
+        SblConsumerStatistic clone = test.getStatLast().clone();
+        if (clone != null) {
             fnExpected.accept(clone);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Assertions.fail("Ошибка клонирования");
         }
-
         context.getBean(CmpConsumer.class).shutdown("Test");
     }
 

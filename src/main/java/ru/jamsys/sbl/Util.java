@@ -1,9 +1,10 @@
 package ru.jamsys.sbl;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class Util {
 
@@ -17,17 +18,22 @@ public class Util {
         System.out.println(Arrays.toString(arr));
     }
 
-    public static <T> void forEach(T[] array, Consumer<T> fn) {
+    public static <T, R> List<R> forEach(T[] array, Function<T, R> fn) {
+        List<R> list = new ArrayList<>();
         for (T item : array) {
-            fn.accept(item);
+            R r = fn.apply(item);
+            if (r != null) {
+                list.add(r);
+            }
         }
+        return list;
     }
 
-    public static void logConsole(String data) {
-        System.out.println(LocalDateTime.now().toString() + " " + data);
+    public static void logConsole(Thread t, String data) {
+        System.out.println(LocalDateTime.now().toString() + " " + t.getName() + " " + data);
     }
 
-    public static long getTimestamp(){
+    public static long getTimestamp() {
         return System.currentTimeMillis() / 1000;
     }
 
