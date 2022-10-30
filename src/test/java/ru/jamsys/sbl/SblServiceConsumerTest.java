@@ -5,12 +5,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
-import ru.jamsys.sbl.component.CmpConsumer;
-import ru.jamsys.sbl.component.CmpConsumerHelper;
-import ru.jamsys.sbl.component.CmpConsumerStatistic;
-import ru.jamsys.sbl.consumer.SblConsumer;
+import ru.jamsys.sbl.component.CmpService;
+import ru.jamsys.sbl.component.CmpHelper;
+import ru.jamsys.sbl.component.CmpStatistic;
+import ru.jamsys.sbl.consumer.SblServiceConsumer;
 import ru.jamsys.sbl.consumer.SblConsumerShutdownException;
-import ru.jamsys.sbl.consumer.SblConsumerStatistic;
 import ru.jamsys.sbl.consumer.SblConsumerTpsOverflowException;
 import ru.jamsys.sbl.message.Message;
 import ru.jamsys.sbl.message.MessageImpl;
@@ -19,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-class SblConsumerTest {
+class SblServiceConsumerTest {
 
     static ConfigurableApplicationContext context;
 
@@ -27,10 +26,10 @@ class SblConsumerTest {
     static void beforeAll() {
         String[] args = new String[]{};
         context = SpringApplication.run(SblApplication.class, args);
-        CmpConsumerStatistic cmpConsumerStatistic = context.getBean(CmpConsumerStatistic.class);
+        CmpStatistic cmpConsumerStatistic = context.getBean(CmpStatistic.class);
         cmpConsumerStatistic.setDebug(true);
         cmpConsumerStatistic.run();
-        context.getBean(CmpConsumerHelper.class).run();
+        context.getBean(CmpHelper.class).run();
     }
 
     @Test
@@ -68,10 +67,10 @@ class SblConsumerTest {
         );
     }
 
-    void run(int countThreadMin, int countThreadMax, long keepAlive, int countIteration, int countMessage, int sleep, int tpsInputMax, Consumer<SblConsumerStatistic> fnExpected) {
+    void run(int countThreadMin, int countThreadMax, long keepAlive, int countIteration, int countMessage, int sleep, int tpsInputMax, Consumer<SblServiceStatistic> fnExpected) {
         Util.logConsole(Thread.currentThread(), "Start test");
         AtomicInteger c = new AtomicInteger(0);
-        SblConsumer test = context.getBean(CmpConsumer.class).instance("Test", countThreadMin, countThreadMax, keepAlive, (msg) -> {
+        SblServiceConsumer test = context.getBean(CmpService.class).createConsumer("Test", countThreadMin, countThreadMax, keepAlive, (msg) -> {
             try {
                 Thread.sleep(1000);
             } catch (Exception e) {
@@ -109,21 +108,13 @@ class SblConsumerTest {
             }
         });
         t1.start();
-        sleep(sleep);
+        UtilTest.sleep(sleep);
         Assertions.assertEquals(realInsert.get(), c.get(), "Не все задачи были обработаны");
-        SblConsumerStatistic clone = test.getStatLast().clone();
+        SblServiceStatistic clone = test.getStatLast().clone();
         if (clone != null) {
             fnExpected.accept(clone);
         }
-        context.getBean(CmpConsumer.class).shutdown("Test");
-    }
-
-    private void sleep(int seconds) {
-        try {
-            TimeUnit.SECONDS.sleep(seconds);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        context.getBean(CmpService.class).shutdown("Test");
     }
 
 }

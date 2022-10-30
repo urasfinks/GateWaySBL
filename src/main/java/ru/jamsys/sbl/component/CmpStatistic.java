@@ -1,30 +1,32 @@
 package ru.jamsys.sbl.component;
 
 import org.springframework.stereotype.Component;
-import ru.jamsys.sbl.CmpConsumerScheduler;
+import ru.jamsys.sbl.scheduler.CmpServiceSchedulerImpl;
 import ru.jamsys.sbl.Util;
-import ru.jamsys.sbl.consumer.SblConsumer;
+import ru.jamsys.sbl.thread.SblService;
+import ru.jamsys.sbl.SblServiceStatistic;
 
 import javax.annotation.PreDestroy;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 @Component
-public class CmpConsumerStatistic extends CmpConsumerScheduler {
+public class CmpStatistic extends CmpServiceSchedulerImpl {
 
-    final private CmpConsumer cmpConsumer;
+    final private CmpService cmpService;
 
-    public CmpConsumerStatistic(CmpConsumer cmpConsumer) {
-        this.cmpConsumer = cmpConsumer;
+    public CmpStatistic(CmpService cmpService) {
+        this.cmpService = cmpService;
     }
 
     @Override
-    protected CmpConsumer getConsumerComponent() {
-        return cmpConsumer;
+    public CmpService getComponentService() {
+        return cmpService;
     }
 
+
     @Override
-    protected String getThreadName() {
+    public String getThreadName() {
         return "Statistic";
     }
 
@@ -35,8 +37,11 @@ public class CmpConsumerStatistic extends CmpConsumerScheduler {
 
     @Override
     @SuppressWarnings("unchecked")
-    protected <T,R> Function<T,R> getConsumer() {
-        return consumer -> (R) ((SblConsumer) consumer).statistic().clone();
+    public <T, R> Function<T, R> getConsumer() {
+        return t -> {
+            SblServiceStatistic r =  ((SblService) t).statistic();
+            return r == null ? null : (R) r.clone();
+        };
     }
 
     @Override

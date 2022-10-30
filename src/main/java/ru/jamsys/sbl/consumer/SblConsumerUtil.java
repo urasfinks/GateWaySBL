@@ -1,10 +1,12 @@
 package ru.jamsys.sbl.consumer;
 
+import ru.jamsys.sbl.SblServiceStatistic;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 public class SblConsumerUtil {
-    public static int getNeedCountThread(SblConsumerStatistic stat) {
+    public static int getNeedCountThread(SblServiceStatistic stat) {
         try {
             return new BigDecimal(stat.getQueueSize())
                     .divide(

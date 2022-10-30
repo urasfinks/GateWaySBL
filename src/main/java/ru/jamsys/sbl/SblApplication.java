@@ -3,20 +3,18 @@ package ru.jamsys.sbl;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
-import ru.jamsys.sbl.component.CmpConsumer;
-import ru.jamsys.sbl.component.CmpConsumerHelper;
-import ru.jamsys.sbl.component.CmpConsumerStatistic;
-
-import java.util.concurrent.*;
+import ru.jamsys.sbl.component.CmpService;
+import ru.jamsys.sbl.component.CmpHelper;
+import ru.jamsys.sbl.component.CmpStatistic;
 
 @SpringBootApplication
 public class SblApplication {
 
     public static void main(String[] args) {
         ConfigurableApplicationContext context = SpringApplication.run(SblApplication.class, args);
-        context.getBean(CmpConsumerStatistic.class).run();
-        context.getBean(CmpConsumerHelper.class).run();
-        context.getBean(CmpConsumer.class).instance("Test", 1, 10, 60000L, msg ->
+        context.getBean(CmpStatistic.class).run();
+        context.getBean(CmpHelper.class).run();
+        context.getBean(CmpService.class).createConsumer("Test", 1, 10, 60000L, msg ->
             System.out.println(msg.getCorrelation())
         );
         //GreetingClient greetingClient = context.getBean(GreetingClient.class);

@@ -1,9 +1,9 @@
-package ru.jamsys.sbl.consumer;
+package ru.jamsys.sbl;
 
 import lombok.Data;
 
 @Data
-public class SblConsumerStatistic implements Cloneable {
+public class SblServiceStatistic implements Cloneable {
 
     int threadCount;
     int queueSize;
@@ -12,17 +12,17 @@ public class SblConsumerStatistic implements Cloneable {
     int tpsIdle;
     int threadCountPark;
 
-    public SblConsumerStatistic clone() {
+    public SblServiceStatistic clone() {
         try {
-            return (SblConsumerStatistic) super.clone();
+            return (SblServiceStatistic) super.clone();
         } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    public static SblConsumerStatistic instance(int tpsOutput, int threadCount, int queueSize) {
-        SblConsumerStatistic t = new SblConsumerStatistic();
+    public static SblServiceStatistic instance(int tpsOutput, int threadCount, int queueSize) {
+        SblServiceStatistic t = new SblServiceStatistic();
         t.setTpsOutput(tpsOutput);
         t.setThreadCount(threadCount);
         t.setQueueSize(queueSize);

@@ -1,7 +1,8 @@
-package ru.jamsys.sbl;
+package ru.jamsys.sbl.scheduler;
 
 import lombok.Setter;
-import ru.jamsys.sbl.component.CmpConsumer;
+import ru.jamsys.sbl.Util;
+import ru.jamsys.sbl.component.CmpService;
 import ru.jamsys.sbl.thread.NamedThreadFactory;
 
 import java.util.List;
@@ -9,9 +10,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
-public class CmpConsumerScheduler {
+public abstract class CmpServiceSchedulerImpl implements CmpConsumerScheduler {
 
     @Setter
     protected boolean debug = false;
@@ -22,7 +22,7 @@ public class CmpConsumerScheduler {
         executor = Executors.newScheduledThreadPool(1, new NamedThreadFactory(getThreadName()));
         executor.scheduleAtFixedRate(() -> {
             try {
-                List<Object> objects = Util.forEach(CmpConsumer.toArray(getConsumerComponent().getListConsumerService()), getConsumer());
+                List<Object> objects = Util.forEach(CmpService.toArray(getComponentService().getListService()), getConsumer());
                 Consumer<Object> handler = getHandler();
                 if (handler != null) {
                     handler.accept(objects);
@@ -37,20 +37,8 @@ public class CmpConsumerScheduler {
         executor.shutdownNow();
     }
 
-    protected CmpConsumer getConsumerComponent() {
-        return null;
-    }
-
-    protected String getThreadName() {
-        return null;
-    }
-
     protected int getPeriod() {
         return 1;
-    }
-
-    protected  <T,R> Function<T, R> getConsumer() {
-        return null;
     }
 
     protected <T> Consumer<T> getHandler() {

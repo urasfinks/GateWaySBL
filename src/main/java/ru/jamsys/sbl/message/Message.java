@@ -1,13 +1,13 @@
 package ru.jamsys.sbl.message;
 
-import ru.jamsys.sbl.consumer.SblConsumer;
+import ru.jamsys.sbl.thread.SblService;
 
 import java.sql.Date;
 import java.sql.Timestamp;
 
 public interface Message {
 
-    void onHandle(MessageHandle handleState, SblConsumer service);
+    void onHandle(MessageHandle handleState, SblService service);
 
     String getBody();
     String getCorrelation();
