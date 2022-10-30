@@ -7,9 +7,10 @@ import java.util.function.Consumer;
 
 public class Util {
 
-    public static <T> T[] copyToArrayString(List<T> l) throws Exception { //concurrent modification exception, да не панацея, но так лучше
-        T[] ts = (T[]) l.toArray(new String[0]);
-        return ts;
+    public static String[] toArray(List<String> l) throws Exception {
+        //concurrent modification exception, да тут не может быть исключения,
+        // но так лучше что бы не забывали обработать исключения при работе в многопоточном доступе
+        return l.toArray(new String[0]);
     }
 
     public static <T> void printArray(T[] arr) {
@@ -29,4 +30,5 @@ public class Util {
     public static long getTimestamp(){
         return System.currentTimeMillis() / 1000;
     }
+
 }

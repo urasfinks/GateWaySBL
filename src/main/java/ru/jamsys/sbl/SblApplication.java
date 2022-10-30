@@ -3,22 +3,22 @@ package ru.jamsys.sbl;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
-import ru.jamsys.sbl.component.ConsumerComponent;
-import ru.jamsys.sbl.component.Helper;
-import ru.jamsys.sbl.component.Statistic;
+import ru.jamsys.sbl.component.CmpConsumer;
+import ru.jamsys.sbl.component.CmpConsumerHelper;
+import ru.jamsys.sbl.component.CmpConsumerStatistic;
 
 import java.util.concurrent.*;
 
 @SpringBootApplication
 public class SblApplication {
 
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
+    public static void main(String[] args) {
         ConfigurableApplicationContext context = SpringApplication.run(SblApplication.class, args);
-        context.getBean(Statistic.class).run();
-        context.getBean(Helper.class).run();
-        context.getBean(ConsumerComponent.class).instance("Test", 1, 10, 60000L, (msg) -> {
-            System.out.println(msg.getCorrelation());
-        });
+        context.getBean(CmpConsumerStatistic.class).run();
+        context.getBean(CmpConsumerHelper.class).run();
+        context.getBean(CmpConsumer.class).instance("Test", 1, 10, 60000L, msg ->
+            System.out.println(msg.getCorrelation())
+        );
         //GreetingClient greetingClient = context.getBean(GreetingClient.class);
         // We need to block for the content here or the JVM might exit before the message is logged
         //System.out.println(">> message = " + greetingClient.getMessage().block());

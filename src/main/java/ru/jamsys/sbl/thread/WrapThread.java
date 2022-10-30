@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Data
 public class WrapThread {
+
     private Thread thread;
     private AtomicBoolean isRun = new AtomicBoolean(true);
     private long lastWakeUp = System.currentTimeMillis();
@@ -19,8 +20,8 @@ public class WrapThread {
         countIteration.incrementAndGet();
     }
 
-    public static <T> T[] toArray(List<T> l) throws Exception {
-        return (T[]) l.toArray(new WrapThread[0]);
+    public static WrapThread[] toArray(List<WrapThread> l) throws Exception {
+        return l.toArray(new WrapThread[0]);
     }
 
 }

@@ -2,15 +2,14 @@ package ru.jamsys.sbl.message;
 
 import lombok.Getter;
 import lombok.Setter;
-import ru.jamsys.sbl.consumer.SBLConsumer;
+import ru.jamsys.sbl.consumer.SblConsumer;
 
-import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class MessageImpl implements Message {
 
-    Queue<String> routeMap = new ConcurrentLinkedQueue();
-    Queue<Exception> errorQueue = new ConcurrentLinkedQueue();
+    ConcurrentLinkedQueue<String> routeMap = new ConcurrentLinkedQueue<>();
+    ConcurrentLinkedQueue<Exception> errorQueue = new ConcurrentLinkedQueue<>();
 
     @Setter
     @Getter
@@ -20,13 +19,8 @@ public class MessageImpl implements Message {
     private final String correlation = java.util.UUID.randomUUID().toString();
 
     @Override
-    public void onHandle(MessageHandle handle, SBLConsumer service) {
+    public void onHandle(MessageHandle handle, SblConsumer service) {
         routeMap.add(convertTimestamp(System.currentTimeMillis()) + " " + service.getName() + " " + handle.toString());
-    }
-
-    @Override
-    public String getBody() {
-        return null;
     }
 
     @Override

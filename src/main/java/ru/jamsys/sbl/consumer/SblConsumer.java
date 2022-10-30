@@ -15,61 +15,65 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
 @Getter
-public class SBLConsumer {
+public class SblConsumer {
 
     private String name;
-    private int countThreadMin = 1;
-    private int countThreadMax = 1;
-    private volatile long keepAlive = 60000L;
-    private Consumer<Message> worker = null;
-    private ConcurrentLinkedDeque<Message> queueTask = new ConcurrentLinkedDeque<>();
-    private ConcurrentLinkedDeque<WrapThread> queueParkThread = new ConcurrentLinkedDeque<>();
-    private List<WrapThread> listThread = new CopyOnWriteArrayList<>();
-    @Getter
-    private volatile ConsumerStatistic lastStat = new ConsumerStatistic();
+    private final int threadCountMin;
+    private final int threadCountMax;
+    private final long threadKeepAlive;
+    private final Consumer<Message> consumer;
 
-    private AtomicInteger nameCounter = new AtomicInteger(0);
-    private AtomicInteger statUseful = new AtomicInteger(0);
-    private AtomicInteger statUseless = new AtomicInteger(0);
-    private AtomicInteger tps = new AtomicInteger(0);
-    private int overclockLimit = 0; //Безразличная по значение переменная, просто для общего статуса, даже если будут расхождения
+    private ConcurrentLinkedDeque<Message> queueTask = new ConcurrentLinkedDeque<>();
+    private ConcurrentLinkedDeque<WrapThread> threadParkQueue = new ConcurrentLinkedDeque<>();
+    private List<WrapThread> threadList = new CopyOnWriteArrayList<>();
+    private volatile SblConsumerStatistic statLast = new SblConsumerStatistic();
+
+    private AtomicInteger threadNameCounter = new AtomicInteger(0);
+    private AtomicInteger tpsIdle = new AtomicInteger(0);
+    private AtomicInteger tpsOutput = new AtomicInteger(0);
+    private AtomicInteger tpsInput = new AtomicInteger(0);
     private AtomicBoolean isActive = new AtomicBoolean(true);
 
     @Setter
     private boolean debug = false;
 
-    public SBLConsumer(String name, int countThreadMin, int countThreadMax, long keepAlive, Consumer<Message> worker) {
+    @Setter
+    private volatile int tpsInputMax = -1; //-1 infinity
+
+    public SblConsumer(String name, int threadCountMin, int threadCountMax, long threadKeepAlive, Consumer<Message> consumer) {
         this.name = name;
-        this.countThreadMin = countThreadMin;
-        this.countThreadMax = countThreadMax;
-        this.worker = worker;
-        this.keepAlive = keepAlive;
-        overclocking(countThreadMin);
+        this.threadCountMin = threadCountMin;
+        this.threadCountMax = threadCountMax;
+        this.consumer = consumer;
+        this.threadKeepAlive = threadKeepAlive;
+        overclocking(threadCountMin);
     }
 
-    private boolean isActive() {
+    private boolean isNotActive() {
         return !isActive.get();
     }
 
-    public boolean handle(Message message) {
-        if (isActive()) {
-            return false;
+    public void accept(Message message) throws SblConsumerShutdownException, SblConsumerTpsOverflowException {
+        if (isNotActive()) {
+            throw new SblConsumerShutdownException("Consumer shutdown");
         }
-        tps.incrementAndGet();
-        message.onHandle(MessageHandle.PUT, this);
+        if (tpsInputMax > 0 && tpsInput.get() >= tpsInputMax) {
+            throw new SblConsumerTpsOverflowException("Max tps: " + tpsInputMax);
+        }
         queueTask.add(message);
-        if (queueParkThread.size() > 0) {//Если ждунов нет, то и вообще ничего делать не надо
-            if (queueParkThread.size() == listThread.size()) { //Если общее кол-во тредов равно коли-ву ждунов
+        tpsInput.incrementAndGet();
+        message.onHandle(MessageHandle.PUT, this);
+        if (threadParkQueue.size() > 0) {//Если ждунов нет, то и вообще ничего делать не надо
+            if (threadParkQueue.size() == threadList.size()) { //Если общее кол-во тредов равно коли-ву ждунов
                 wakeUpThread();
             } else if (queueTask.size() > 0) {//Если в очереди есть задачи, попробуем пробудить (так как add выше)
                 wakeUpThread();
             }
         }
-        return true;
     }
 
     private void wakeUpThread() {
-        WrapThread wrapThread = queueParkThread.pollLast();
+        WrapThread wrapThread = threadParkQueue.pollLast();
         if (wrapThread != null) {
             wrapThread.setLastWakeUp(System.currentTimeMillis());
             LockSupport.unpark(wrapThread.getThread());
@@ -77,7 +81,7 @@ public class SBLConsumer {
     }
 
     private void overclocking(int count) {
-        if (isActive() || listThread.size() == countThreadMax) {
+        if (isNotActive() || threadList.size() == threadCountMax) {
             return;
         }
         for (int i = 0; i < count; i++) {
@@ -86,20 +90,20 @@ public class SBLConsumer {
     }
 
     private void addThead() {
-        if (listThread.size() < countThreadMax) {
-            final SBLConsumer self = this;
+        if (threadList.size() < threadCountMax) {
+            final SblConsumer self = this;
             final WrapThread wrapThread = new WrapThread();
             wrapThread.setThread(new Thread(() -> {
                 while (wrapThread.getIsRun().get()) {
                     wrapThread.incCountIteration(); // Это для отслеживания, что поток вообще работать)
-                    statUseless.incrementAndGet();
+                    tpsIdle.incrementAndGet();
                     while (!queueTask.isEmpty() && wrapThread.getIsRun().get()) { //Всегда проверяем, что поток не выводят из эксплуатации
                         Message message = queueTask.pollLast();
                         if (message != null) {
-                            statUseful.incrementAndGet();
+                            tpsOutput.incrementAndGet();
                             message.onHandle(MessageHandle.EXECUTE, self);
                             try {
-                                worker.accept(message);
+                                consumer.accept(message);
                                 message.onHandle(MessageHandle.COMPLETE, self);
                             } catch (Exception e) {
                                 message.setError(e);
@@ -107,32 +111,30 @@ public class SBLConsumer {
                         }
                     }
                     if (wrapThread.getIsRun().get()) { //Если мы все, то больше парковаться не надо
-                        queueParkThread.add(wrapThread);
+                        threadParkQueue.add(wrapThread);
                         LockSupport.park();
                     }
                 }
             }));
-            wrapThread.getThread().setName(getName() + "-" + nameCounter.getAndIncrement());
+            wrapThread.getThread().setName(getName() + "-" + threadNameCounter.getAndIncrement());
             wrapThread.getThread().start();
-            listThread.add(wrapThread);
-        } else {
-            overclockLimit++;
+            threadList.add(wrapThread);
         }
     }
 
     private void removeThread(WrapThread wth) {
-        if (listThread.size() > countThreadMin) {
+        if (threadList.size() > threadCountMin) {
             forceRemoveThread(wth);
         }
     }
 
     private void forceRemoveThread(WrapThread wth) { //Этот метод может загасит сервис до конца, используйте обычный removeThread
-        WrapThread wrapThread = wth != null ? wth : listThread.get(0);
+        WrapThread wrapThread = wth != null ? wth : threadList.get(0);
         if (wrapThread != null) {
             wrapThread.getIsRun().set(false);
             LockSupport.unpark(wrapThread.getThread()); //Мы его оживляем, что бы он закончился
-            listThread.remove(wrapThread);
-            queueParkThread.remove(wrapThread); // На всякий случай
+            threadList.remove(wrapThread);
+            threadParkQueue.remove(wrapThread); // На всякий случай
             if (debug) {
                 Util.logConsole("removeThread: " + wrapThread);
             }
@@ -140,39 +142,38 @@ public class SBLConsumer {
     }
 
     public void statistic() { //Пока пришел к мысли, что не надо смешивать статистику и принятие решений увелечений и уменьшению потоков
-        lastStat.setCountOperationUseful(statUseful.getAndSet(0));
-        lastStat.setCountOperationUseless(statUseless.getAndSet(0));
-        lastStat.setCountThread(listThread.size());
-        lastStat.setQueueSize(queueTask.size());
-        lastStat.setTps(tps.getAndSet(0));
-        lastStat.setOverclockLimit(overclockLimit);
-        overclockLimit = 0;
+        statLast.setTpsInput(tpsInput.getAndSet(0));
+        statLast.setTpsIdle(tpsIdle.getAndSet(0));
+        statLast.setTpsOutput(tpsOutput.getAndSet(0));
+        statLast.setThreadCount(threadList.size());
+        statLast.setQueueSize(queueTask.size());
+        statLast.setThreadCountPark(threadParkQueue.size());
         if (debug) {
-            Util.logConsole("Statistic: " + lastStat.toString());
+            Util.logConsole("Statistic: " + statLast.toString());
         }
     }
 
     public void helper() {
         try {
-            ConsumerStatistic stat = (ConsumerStatistic) lastStat.clone();
+            SblConsumerStatistic stat = (SblConsumerStatistic) statLast.clone();
             if (debug) {
-                Util.logConsole("Helper: QueueSize: " + stat.getQueueSize() + "; CountThread: " + stat.getCountThread());
+                Util.logConsole("Helper: QueueSize: " + stat.getQueueSize() + "; CountThread: " + stat.getThreadCount());
             }
             if (stat.getQueueSize() > 0) { //Если очередь наполнена
                 //Расчет необходимого кол-ва потоков, что бы обработать всю очередь
-                int needCountThread = ConsumerUtil.getNeedCountThread(stat);
-                if (needCountThread > 0 && listThread.size() < countThreadMax) {
+                int needCountThread = SblConsumerUtil.getNeedCountThread(stat);
+                if (needCountThread > 0 && threadList.size() < threadCountMax) {
                     if (debug) {
                         Util.logConsole("Helper: addThread: " + needCountThread);
                     }
                     overclocking(needCountThread);
                 }
-            } else if (stat.getCountThread() > countThreadMin) { //нет необходимости удалять, когда потоков заявленный минимум
+            } else if (stat.getThreadCount() > threadCountMin) { //нет необходимости удалять, когда потоков заявленный минимум
                 long now = System.currentTimeMillis();
                 //Хотелось, что бы удаление было 1 тред в секунду, но так как helper запускается раз в 2 секунды, то и удалять будем по 2
                 final AtomicInteger c = new AtomicInteger(2);
-                Util.forEach(WrapThread.toArray(listThread), (wth) -> {
-                    long future = wth.getLastWakeUp() + keepAlive;
+                Util.forEach(WrapThread.toArray(threadList), (wth) -> {
+                    long future = wth.getLastWakeUp() + threadKeepAlive;
                     //Время последнего оживления превысило keepAlive + поток реально не работал
                     if (now > future && wth.getCountIteration().get() == 0 && c.getAndDecrement() > 0) {
                         removeThread(wth);
@@ -186,20 +187,23 @@ public class SBLConsumer {
         }
     }
 
-    public void shutdown() {
-        isActive.set(false);
-        while (listThread.size() > 0) {
-            WrapThread wrapThread = queueParkThread.getFirst(); //Замысел такой, что бы выцеплять только заверенные процессы
-            if (wrapThread != null) {
-                forceRemoveThread(wrapThread);
-            } else {
-                try {
-                    Thread.sleep(100);
-                } catch (Exception e) {
-                    e.printStackTrace();
+    public void shutdown() throws SblConsumerShutdownException {
+        if (isActive.compareAndSet(true, false)) { //Только один поток будет останавливать
+            while (threadList.size() > 0) {
+                WrapThread wrapThread = threadParkQueue.getFirst(); //Замысел такой, что бы выцеплять только заверенные процессы
+                if (wrapThread != null) {
+                    forceRemoveThread(wrapThread);
+                } else {
+                    try {
+                        TimeUnit.MILLISECONDS.sleep(100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }
+        if (threadList.size() > 0) {
+            throw new SblConsumerShutdownException("ThreadPoolSize: " + threadList.size());
+        }
     }
-
 }
