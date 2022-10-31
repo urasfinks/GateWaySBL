@@ -7,6 +7,7 @@ import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.consumer.SblConsumerShutdownException;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -14,30 +15,40 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
-@Getter
 public abstract class SblServiceAbstract implements SblService {
 
+    @Getter
     protected String name;
 
-    protected int threadCountMin;
-    protected AtomicInteger threadCountMax; //Я подумал, что неплохо в рантайме управлять
-    protected long threadKeepAlive;
+    private int threadCountMin;
+    private AtomicInteger threadCountMax; //Я подумал, что неплохо в рантайме управлять
+    private long threadKeepAlive;
+
+    @Getter
+    private volatile int tpsInputMax = -1; //-1 infinity
 
     private final AtomicInteger threadNameCounter = new AtomicInteger(0);
 
-    protected AtomicBoolean isActive = new AtomicBoolean(false);
-    protected List<WrapThread> threadList = new CopyOnWriteArrayList<>();
-    protected ConcurrentLinkedDeque<WrapThread> threadParkQueue = new ConcurrentLinkedDeque<>();
+    private AtomicBoolean isActive = new AtomicBoolean(false);
+    private List<WrapThread> threadList = new CopyOnWriteArrayList<>();
+    private ConcurrentLinkedDeque<WrapThread> threadParkQueue = new ConcurrentLinkedDeque<>();
 
-    protected AtomicInteger tpsIdle = new AtomicInteger(0);
-    protected AtomicInteger tpsOutput = new AtomicInteger(0);
+    private AtomicInteger tpsIdle = new AtomicInteger(0);
+    private AtomicInteger tpsInput = new AtomicInteger(0);
+    private AtomicInteger tpsOutput = new AtomicInteger(0);
 
+    private volatile SblServiceStatistic statLast = new SblServiceStatistic();
 
-    protected volatile SblServiceStatistic statLast = new SblServiceStatistic();
+    public SblServiceStatistic getStatLast() {
+        return statLast;
+    }
+
+    public SblServiceStatistic getStatClone() {
+        return statLast.clone();
+    }
 
     @Setter
     protected boolean debug = false;
-
 
     @Override
     public void incThreadMax() {
@@ -47,6 +58,26 @@ public abstract class SblServiceAbstract implements SblService {
     @Override
     public void decThreadMax() {
         threadCountMax.decrementAndGet();
+    }
+
+    public boolean isThreadRemove(SblServiceStatistic stat) {
+        return stat.getThreadCount() > threadCountMin;
+    }
+
+    public boolean isThreadAdd() {
+        return threadList.size() < threadCountMax.get();
+    }
+
+    public boolean isThreadParkAll() {
+        return threadParkQueue.size() > 0 && threadParkQueue.size() == threadList.size();
+    }
+
+    public int getThreadListSize() {
+        return threadList.size();
+    }
+
+    public int getThreadParkQueueSize() {
+        return threadParkQueue.size();
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
@@ -61,17 +92,26 @@ public abstract class SblServiceAbstract implements SblService {
         return false;
     }
 
-    protected boolean isLimitTpsMain() {
-        return getTpsMainMax() > 0 && getTpsMain().get() >= getTpsMainMax();
+    public void setTpsInputMax(int max) {
+        tpsInputMax = max;
     }
 
-    protected void incTpsMain() {
-        getTpsMain().incrementAndGet();
+    protected boolean isLimitTpsInputOverflow() {
+        return tpsInputMax > 0 && tpsInput.get() >= tpsInputMax;
+    }
+
+    protected void incTpsInput() {
+        tpsInput.incrementAndGet();
+    }
+
+    protected void incTpsOutput() {
+        tpsOutput.incrementAndGet();
     }
 
     @Override
     public SblServiceStatistic statistic() {
         statLast.setTpsIdle(tpsIdle.getAndSet(0));
+        statLast.setTpsInput(tpsInput.getAndSet(0));
         statLast.setTpsOutput(tpsOutput.getAndSet(0));
         statLast.setThreadCount(threadList.size());
         statLast.setThreadCountPark(threadParkQueue.size());
@@ -85,15 +125,17 @@ public abstract class SblServiceAbstract implements SblService {
     public void shutdown() throws SblConsumerShutdownException {
         if (isActive.compareAndSet(true, false)) { //Только один поток будет останавливать
             while (threadList.size() > 0) {
-                WrapThread wrapThread = threadParkQueue.getFirst(); //Замысел такой, что бы выцеплять только заверенные процессы
-                if (wrapThread != null) {
+                try {
+                    WrapThread wrapThread = threadParkQueue.getFirst(); //Замысел такой, что бы выцеплять только заверенные процессы
                     forceRemoveThread(wrapThread);
-                } else {
+                } catch (NoSuchElementException e) { //Если нет в отстойнике - подождём немного
                     try {
                         TimeUnit.MILLISECONDS.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                    } catch (InterruptedException e2) {
+                        e2.printStackTrace();
                     }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
         }
@@ -121,7 +163,7 @@ public abstract class SblServiceAbstract implements SblService {
         }
     }
 
-    protected void wakeUpThread() {
+    protected void wakeUpOnceThread() {
         while (true) {
             WrapThread wrapThread = threadParkQueue.pollLast(); //Всегда забираем с конца, в начале тушаться потоки под нож
             if (wrapThread != null) {
@@ -130,6 +172,7 @@ public abstract class SblServiceAbstract implements SblService {
                 if (wrapThread.getThread().getState().equals(Thread.State.WAITING)) {
                     wrapThread.setLastWakeUp(System.currentTimeMillis());
                     LockSupport.unpark(wrapThread.getThread());
+                    break;
                 } else { // Ещё статус не переключился, просто отбрасываем в начала очереди, к тем, кто ждёт ножа
                     threadParkQueue.addFirst(wrapThread);
                 }
@@ -153,14 +196,12 @@ public abstract class SblServiceAbstract implements SblService {
             final SblService self = this;
             final WrapThread wrapThread = new WrapThread();
             wrapThread.setThread(new Thread(() -> {
-                while (wrapThread.getIsRun().get()) {
+                while (isActive() && wrapThread.getIsRun().get()) {
                     wrapThread.incCountIteration(); // Это для отслеживания, что поток вообще работает
                     tpsIdle.incrementAndGet();
                     iteration(wrapThread, self);
                     if (wrapThread.getIsRun().get()) { //Если мы все, то больше парковаться не надо
-                        //Можно нарваться на гонку, когда его выхватят из очереди, скажут давай поехали
-
-                        //wrapThread.setParkTime(System.currentTimeMillis() + 10);
+                        //В методе wakeUpOnceThread решена проблема гонки за предварительный старт
                         threadParkQueue.add(wrapThread);
                         LockSupport.park();
                     }

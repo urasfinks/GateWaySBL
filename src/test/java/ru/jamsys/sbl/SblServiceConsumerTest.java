@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import ru.jamsys.sbl.component.CmpService;
-import ru.jamsys.sbl.component.CmpHelper;
+import ru.jamsys.sbl.component.CmpThreadStabilizer;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.consumer.SblServiceConsumer;
 import ru.jamsys.sbl.consumer.SblConsumerShutdownException;
@@ -30,7 +30,7 @@ class SblServiceConsumerTest {
         CmpStatistic cmpConsumerStatistic = context.getBean(CmpStatistic.class);
         cmpConsumerStatistic.setDebug(true);
         cmpConsumerStatistic.run();
-        context.getBean(CmpHelper.class).run();
+        context.getBean(CmpThreadStabilizer.class).run();
     }
 
     @Test
@@ -81,7 +81,7 @@ class SblServiceConsumerTest {
             //Util.logConsole("[" + c.incrementAndGet() + "] " + msg.getCorrelation());
         });
         test.setDebug(true);
-        test.setTpsMainMax(tpsInputMax);
+        test.setTpsInputMax(tpsInputMax);
 
         AtomicInteger realInsert = new AtomicInteger(0);
 
@@ -109,9 +109,9 @@ class SblServiceConsumerTest {
             }
         });
         t1.start();
-        UtilTest.sleep(sleep);
+        UtilTest.sleepSec(sleep);
         Assertions.assertEquals(realInsert.get(), c.get(), "Не все задачи были обработаны");
-        SblServiceStatistic clone = test.getStatLast().clone();
+        SblServiceStatistic clone = test.getStatClone();
         if (clone != null) {
             fnExpected.accept(clone);
         }

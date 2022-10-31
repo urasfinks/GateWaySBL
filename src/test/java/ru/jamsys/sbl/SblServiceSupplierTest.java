@@ -5,7 +5,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
-import ru.jamsys.sbl.component.CmpHelper;
+import ru.jamsys.sbl.component.CmpThreadStabilizer;
 import ru.jamsys.sbl.component.CmpService;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.message.MessageImpl;
@@ -24,20 +24,40 @@ class SblServiceSupplierTest {
         CmpStatistic cmpConsumerStatistic = context.getBean(CmpStatistic.class);
         cmpConsumerStatistic.setDebug(true);
         cmpConsumerStatistic.run();
-        context.getBean(CmpHelper.class).run();
+        context.getBean(CmpThreadStabilizer.class).run();
     }
 
     @Test
-    void test() {
-        run(1, 5, 6000L, 1, 5, 10, clone ->
-                Assertions.assertTrue(clone.getQueueSize() < 10, "Очередь слишком большая, для максимальных 5 тпс"));
+    void overclocking() {
+        run(1, 5, 6000L, 10, 5, clone ->
+                Assertions.assertEquals(5, clone.getThreadCount(), "Должен был разогнаться до 5 потоков"));
     }
 
-    void run(int countThreadMin, int countThreadMax, long keepAlive, int countIteration, int countMessage, int sleep, Consumer<SblServiceStatistic> fnExpected) {
-        SblService test = context.getBean(CmpService.class).instance("Test", countThreadMin, countThreadMax, keepAlive, 1000, MessageImpl::new);
+    @Test
+    void overTps() {
+        run(1, 20, 6000L,15, 5, clone ->
+                Assertions.assertEquals(5, clone.getTpsOutput(), "Не должно превышать 5 тпс"));
+    }
+
+    @Test
+    void overTps2() {
+        run(1, 250, 6000L,15, 250, clone ->
+                Assertions.assertEquals(5, clone.getTpsOutput(), "Не должно превышать 5 тпс"));
+    }
+
+    void run(int countThreadMin, int countThreadMax, long keepAlive, int sleep, int maxTps, Consumer<SblServiceStatistic> fnExpected) {
+        SblService test = context.getBean(CmpService.class).instance("Test", countThreadMin, countThreadMax, keepAlive, 1000, ()->{
+            UtilTest.sleepMillis(500);
+            return new MessageImpl();
+        });
         test.setDebug(true);
-        test.setTpsMainMax(5);
-        UtilTest.sleep(sleep);
+        test.setTpsInputMax(maxTps);
+        UtilTest.sleepSec(sleep);
+        SblServiceStatistic clone = test.getStatClone();
+        if (clone != null) {
+            fnExpected.accept(clone);
+        }
+        context.getBean(CmpService.class).shutdown("Test");
     }
 
 }

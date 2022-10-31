@@ -2,13 +2,11 @@ package ru.jamsys.sbl.thread;
 
 import ru.jamsys.sbl.SblServiceStatistic;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 public interface SblService {
 
     SblServiceStatistic statistic();
 
-    void helper();
+    void threadStabilizer();
 
     String getName();
 
@@ -18,16 +16,12 @@ public interface SblService {
 
     void setDebug(boolean b);
 
-    SblServiceStatistic getStatLast();
-
-    void setTpsMainMax(int max);
-
-    int getTpsMainMax();
-
-    AtomicInteger getTpsMain();
+    SblServiceStatistic getStatClone();
 
     void incThreadMax();
 
     void decThreadMax();
+
+    void setTpsInputMax(int maxTps);
 
 }

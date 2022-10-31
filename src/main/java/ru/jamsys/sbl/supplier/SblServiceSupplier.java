@@ -12,10 +12,9 @@ import ru.jamsys.sbl.thread.SblService;
 import ru.jamsys.sbl.thread.SblServiceAbstract;
 import ru.jamsys.sbl.thread.WrapThread;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
-@Getter
 @Component
 @Scope("prototype")
 public class SblServiceSupplier extends SblServiceAbstract implements Supplier<Message> {
@@ -29,22 +28,26 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
     public void configure(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, long threadSleepMillis, Supplier<Message> supplier) {
         if (super.configure(name, threadCountMin, threadCountMax, threadKeepAliveMillis)) {
             this.supplier = supplier;
-            scheduler = new SblServiceSupplierScheduler(name + "-Scheduler", threadSleepMillis);
+            scheduler = new SblServiceSupplierScheduler(name + "-Supplier-Scheduler", threadSleepMillis);
             scheduler.run(this);
             overclocking(threadCountMin);
         }
     }
 
+    public Function<Integer, Integer> getNeedCountThread() {
+        return (y) -> 100;
+    }
+
     @Override
-    public void helper() {
+    public void threadStabilizer() {
         try {
-            SblServiceStatistic stat = statLast.clone();
-            if (debug) {
-                Util.logConsole(Thread.currentThread(), "CountThread: " + stat.getThreadCount());
-            }
-            if (threadParkQueue.size() == 0) { //Добавляем ровно столько же
-                overclocking(threadList.size());
-            } else if (stat.getThreadCount() > threadCountMin) { //нет необходимости удалять, когда потоков заявленный минимум
+            SblServiceStatistic stat = getStatClone();
+            if (getThreadParkQueueSize() == 0) {//В очереди нет ждунов, значит все трудятся, накинем ещё
+                if (debug) {
+                    Util.logConsole(Thread.currentThread(), "AddThread: " + getThreadListSize());
+                }
+                overclocking(getNeedCountThread().apply(getThreadListSize())); //Добавляем ровно столько же
+            } else if (isThreadRemove(stat)) { //нет необходимости удалять, когда потоков заявленный минимум
                 checkKeepAliveAndRemoveThread();
             }
         } catch (Exception e) {
@@ -53,36 +56,25 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
     }
 
     public void tick() {
-        if (isActive() && threadParkQueue.size() > 0) { //При маленькой нагрузке будет дёргаться всегда последний тред, а все остальные под нож
-            wakeUpThread();
+        //При маленькой нагрузке дёргаем всегда последний тред, что бы не было простоев
+        //Далее раскрутку оставляем на откуп стабилизатору
+        if (isActive() && isThreadParkAll()) {
+            wakeUpOnceThread();
         }
     }
 
     @Override
     public void iteration(WrapThread wrapThread, SblService service) {
-        while (wrapThread.getIsRun().get() && !isLimitTpsMain()) {
+        while (isActive() && wrapThread.getIsRun().get() && !isLimitTpsInputOverflow()) {
+            incTpsInput();
             Message message = get();
             if (message != null) {
-                incTpsMain();
+                incTpsOutput();
             } else {
                 break;
             }
         }
-    }
-
-    @Override
-    public void setTpsMainMax(int max) {
-        tpsOutputMax = max;
-    }
-
-    @Override
-    public AtomicInteger getTpsMain() {
-        return tpsOutput;
-    }
-
-    @Override
-    public int getTpsMainMax() {
-        return tpsOutputMax;
+        //System.out.println("Finish: isActive: " + isActive + "; threadIsRun: " + wrapThread.getIsRun().get() + "; isLimitOverflow: " + (isLimitTpsMainOverflow()));
     }
 
     @Override

@@ -13,7 +13,6 @@ public class WrapThread {
     private AtomicBoolean isRun = new AtomicBoolean(true);
     private long lastWakeUp = System.currentTimeMillis();
     private AtomicInteger countIteration = new AtomicInteger(0);
-    private volatile long parkTime;
 
     public void incCountIteration() {
         countIteration.incrementAndGet();
