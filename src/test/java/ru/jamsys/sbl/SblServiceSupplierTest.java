@@ -41,7 +41,7 @@ class SblServiceSupplierTest {
 
     @Test
     void overTps2() {
-        run(1, 250, 6000L,15, 250, clone ->
+        run(1, 250, 3000L,300, 250, clone ->
                 Assertions.assertEquals(5, clone.getTpsOutput(), "Не должно превышать 5 тпс"));
     }
 

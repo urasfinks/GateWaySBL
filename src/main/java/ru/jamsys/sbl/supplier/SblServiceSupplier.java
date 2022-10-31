@@ -1,7 +1,6 @@
 package ru.jamsys.sbl.supplier;
 
-
-import lombok.Getter;
+import lombok.Setter;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import ru.jamsys.sbl.SblServiceStatistic;
@@ -14,15 +13,13 @@ import ru.jamsys.sbl.thread.WrapThread;
 
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 @Component
 @Scope("prototype")
 public class SblServiceSupplier extends SblServiceAbstract implements Supplier<Message> {
 
     private Supplier<Message> supplier;
-
-    protected volatile int tpsOutputMax = -1; //-1 infinity
-
     private SblServiceSupplierScheduler scheduler;
 
     public void configure(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, long threadSleepMillis, Supplier<Message> supplier) {
@@ -34,20 +31,20 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
         }
     }
 
-    public Function<Integer, Integer> getNeedCountThread() {
-        return (y) -> 100;
-    }
+    @Setter
+    Function<Integer, Integer> formulaAddCountThread = (y) -> 100;
 
     @Override
     public void threadStabilizer() {
         try {
             SblServiceStatistic stat = getStatClone();
             if (getThreadParkQueueSize() == 0) {//В очереди нет ждунов, значит все трудятся, накинем ещё
+                int needCountThread = formulaAddCountThread.apply(getThreadListSize());
                 if (debug) {
-                    Util.logConsole(Thread.currentThread(), "AddThread: " + getThreadListSize());
+                    Util.logConsole(Thread.currentThread(), "AddThread: " + needCountThread);
                 }
-                overclocking(getNeedCountThread().apply(getThreadListSize())); //Добавляем ровно столько же
-            } else if (isThreadRemove(stat)) { //нет необходимости удалять, когда потоков заявленный минимум
+                overclocking(needCountThread);
+            } else if (isThreadRemove(stat)) { //Кол-во потоков больше минимума
                 checkKeepAliveAndRemoveThread();
             }
         } catch (Exception e) {
@@ -58,8 +55,18 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
     public void tick() {
         //При маленькой нагрузке дёргаем всегда последний тред, что бы не было простоев
         //Далее раскрутку оставляем на откуп стабилизатору
-        if (isActive() && isThreadParkAll()) {
-            wakeUpOnceThread();
+        if (isActive()) {
+            int diffTpsInput = getDiffTpsInput();
+            if (isThreadParkAll()) {
+                wakeUpOnceThread();
+            } else if (diffTpsInput > 0) {
+                /*IntStream.range(0, diffTpsInput).forEach(index -> {
+                    wakeUpOnceThread();
+                });*/
+                for (int i = 0; i < diffTpsInput; i++) {
+                    wakeUpOnceThread();
+                }
+            }
         }
     }
 

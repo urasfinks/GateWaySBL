@@ -43,6 +43,7 @@ public abstract class SblServiceAbstract implements SblService {
         return statLast;
     }
 
+    @Override
     public SblServiceStatistic getStatClone() {
         return statLast.clone();
     }
@@ -60,52 +61,9 @@ public abstract class SblServiceAbstract implements SblService {
         threadCountMax.decrementAndGet();
     }
 
-    public boolean isThreadRemove(SblServiceStatistic stat) {
-        return stat.getThreadCount() > threadCountMin;
-    }
-
-    public boolean isThreadAdd() {
-        return threadList.size() < threadCountMax.get();
-    }
-
-    public boolean isThreadParkAll() {
-        return threadParkQueue.size() > 0 && threadParkQueue.size() == threadList.size();
-    }
-
-    public int getThreadListSize() {
-        return threadList.size();
-    }
-
-    public int getThreadParkQueueSize() {
-        return threadParkQueue.size();
-    }
-
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    public boolean configure(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis) {
-        if (isActive.compareAndSet(false, true)) {
-            this.name = name;
-            this.threadCountMin = threadCountMin;
-            this.threadCountMax = new AtomicInteger(threadCountMax);
-            this.threadKeepAlive = threadKeepAliveMillis;
-            return true;
-        }
-        return false;
-    }
-
+    @Override
     public void setTpsInputMax(int max) {
         tpsInputMax = max;
-    }
-
-    protected boolean isLimitTpsInputOverflow() {
-        return tpsInputMax > 0 && tpsInput.get() >= tpsInputMax;
-    }
-
-    protected void incTpsInput() {
-        tpsInput.incrementAndGet();
-    }
-
-    protected void incTpsOutput() {
-        tpsOutput.incrementAndGet();
     }
 
     @Override
@@ -118,10 +76,7 @@ public abstract class SblServiceAbstract implements SblService {
         return statLast;
     }
 
-    protected boolean isActive() {
-        return isActive.get();
-    }
-
+    @Override
     public void shutdown() throws SblConsumerShutdownException {
         if (isActive.compareAndSet(true, false)) { //Только один поток будет останавливать
             while (threadList.size() > 0) {
@@ -144,23 +99,70 @@ public abstract class SblServiceAbstract implements SblService {
         }
     }
 
-    protected void removeThread(WrapThread wth) {
-        if (threadList.size() > threadCountMin) {
-            forceRemoveThread(wth);
+    protected boolean isThreadRemove(SblServiceStatistic stat) {
+        return stat.getThreadCount() > threadCountMin;
+    }
+
+    protected boolean isThreadAdd() {
+        return threadList.size() < threadCountMax.get();
+    }
+
+    protected boolean isThreadParkAll() {
+        return threadParkQueue.size() > 0 && threadParkQueue.size() == threadList.size();
+    }
+
+    protected int getThreadListSize() {
+        return threadList.size();
+    }
+
+    protected int getThreadParkQueueSize() {
+        return threadParkQueue.size();
+    }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    protected boolean configure(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis) {
+        if (isActive.compareAndSet(false, true)) {
+            this.name = name;
+            this.threadCountMin = threadCountMin;
+            this.threadCountMax = new AtomicInteger(threadCountMax);
+            this.threadKeepAlive = threadKeepAliveMillis;
+            return true;
+        }
+        return false;
+    }
+
+    protected boolean isLimitTpsInputOverflow() {
+        return tpsInputMax > 0 && tpsInput.get() >= tpsInputMax;
+    }
+
+    protected int getDiffTpsInput() {
+        SblServiceStatistic stat = getStatClone();
+        //return tpsInputMax > 0 ? (tpsInputMax - stat.getTpsInput()) : threadParkQueue.size();
+        if (tpsInputMax > 0) {
+            int tpsInputGet = tpsInput.get();
+            int x = tpsInputMax - tpsInputGet;
+            int threadParkQueueSize = getThreadParkQueueSize();
+            if (x > threadParkQueueSize) {
+                x = threadParkQueueSize;
+            }
+            x = x/4;
+            System.out.println("DIFF: tpsInputMax: " + tpsInputMax + "; tpsInput: " + tpsInputGet + "; => " + x + "; Park: " + threadParkQueueSize);
+            return x;
+        } else {
+            return threadParkQueue.size();
         }
     }
 
-    protected void forceRemoveThread(WrapThread wth) { //Этот метод может загасит сервис до конца, используйте обычный removeThread
-        WrapThread wrapThread = wth != null ? wth : threadList.get(0);
-        if (wrapThread != null) {
-            wrapThread.getIsRun().set(false);
-            LockSupport.unpark(wrapThread.getThread()); //Мы его оживляем, что бы он закончился
-            threadList.remove(wrapThread);
-            threadParkQueue.remove(wrapThread); // На всякий случай
-            if (debug) {
-                Util.logConsole(Thread.currentThread(), "removeThread: " + wrapThread);
-            }
-        }
+    protected void incTpsInput() {
+        tpsInput.incrementAndGet();
+    }
+
+    protected void incTpsOutput() {
+        tpsOutput.incrementAndGet();
+    }
+
+    protected boolean isActive() {
+        return isActive.get();
     }
 
     protected void wakeUpOnceThread() {
@@ -168,7 +170,7 @@ public abstract class SblServiceAbstract implements SblService {
             WrapThread wrapThread = threadParkQueue.pollLast(); //Всегда забираем с конца, в начале тушаться потоки под нож
             if (wrapThread != null) {
                 //Так как последующая операция перед вставкой в очередь - блокировка
-                //Надо проверить, что поток заблокирован (возможна гонка)
+                //Надо проверить, что поток припаркован (возможна гонка)
                 if (wrapThread.getThread().getState().equals(Thread.State.WAITING)) {
                     wrapThread.setLastWakeUp(System.currentTimeMillis());
                     LockSupport.unpark(wrapThread.getThread());
@@ -213,7 +215,26 @@ public abstract class SblServiceAbstract implements SblService {
         }
     }
 
-    public void checkKeepAliveAndRemoveThread() { //Проверка ждунов, что они давно не вызывались и у них кол-во итераций равно 0 -> нож
+    protected void removeThread(WrapThread wth) {
+        if (threadList.size() > threadCountMin) {
+            forceRemoveThread(wth);
+        }
+    }
+
+    private void forceRemoveThread(WrapThread wth) { //Этот метод может загасит сервис до конца, используйте обычный removeThread
+        WrapThread wrapThread = wth != null ? wth : threadList.get(0);
+        if (wrapThread != null) {
+            wrapThread.getIsRun().set(false);
+            LockSupport.unpark(wrapThread.getThread()); //Мы его оживляем, что бы он закончился
+            threadList.remove(wrapThread);
+            threadParkQueue.remove(wrapThread); // На всякий случай
+            if (debug) {
+                Util.logConsole(Thread.currentThread(), "removeThread: " + wrapThread);
+            }
+        }
+    }
+
+    protected void checkKeepAliveAndRemoveThread() { //Проверка ждунов, что они давно не вызывались и у них кол-во итераций равно 0 -> нож
         try {
             final long now = System.currentTimeMillis();
             //Хотелось, что бы удаление было 1 тред в секунду, но так как helper запускается раз в 2 секунды, то и удалять будем по 2
