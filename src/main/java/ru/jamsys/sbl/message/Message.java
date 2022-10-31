@@ -10,6 +10,7 @@ public interface Message {
     void onHandle(MessageHandle handleState, SblService service);
 
     String getBody();
+
     String getCorrelation();
 
     default String convertTimestamp(long timestamp) {

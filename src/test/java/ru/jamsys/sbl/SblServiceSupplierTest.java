@@ -29,7 +29,7 @@ class SblServiceSupplierTest {
 
     @Test
     void test() {
-        run(1,5, 6000L, 1, 5, 10, clone ->
+        run(1, 5, 6000L, 1, 5, 10, clone ->
                 Assertions.assertTrue(clone.getQueueSize() < 10, "Очередь слишком большая, для максимальных 5 тпс"));
     }
 

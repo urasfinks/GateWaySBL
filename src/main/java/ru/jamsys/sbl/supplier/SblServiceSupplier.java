@@ -1,38 +1,61 @@
 package ru.jamsys.sbl.supplier;
 
 
+import lombok.Getter;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
+import ru.jamsys.sbl.SblServiceStatistic;
+import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.consumer.SblConsumerShutdownException;
 import ru.jamsys.sbl.message.Message;
 import ru.jamsys.sbl.thread.SblService;
-import ru.jamsys.sbl.thread.SblServiceImpl;
+import ru.jamsys.sbl.thread.SblServiceAbstract;
 import ru.jamsys.sbl.thread.WrapThread;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-public class SblServiceSupplier extends SblServiceImpl implements Supplier<Message> {
+@Getter
+@Component
+@Scope("prototype")
+public class SblServiceSupplier extends SblServiceAbstract implements Supplier<Message> {
 
-    private final Supplier<Message> supplier;
+    private Supplier<Message> supplier;
 
     protected volatile int tpsOutputMax = -1; //-1 infinity
 
-    private final SblServiceSupplierScheduler scheduler;
+    private SblServiceSupplierScheduler scheduler;
 
-    public SblServiceSupplier(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, long threadSleepMillis, Supplier<Message> supplier) {
-        super(name, threadCountMin, threadCountMax, threadKeepAliveMillis);
-        this.supplier = supplier;
-        scheduler = new SblServiceSupplierScheduler(name + "-Scheduler", threadSleepMillis);
-        scheduler.run(this);
-        overclocking(threadCountMin);
+    public void configure(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, long threadSleepMillis, Supplier<Message> supplier) {
+        if (super.configure(name, threadCountMin, threadCountMax, threadKeepAliveMillis)) {
+            this.supplier = supplier;
+            scheduler = new SblServiceSupplierScheduler(name + "-Scheduler", threadSleepMillis);
+            scheduler.run(this);
+            overclocking(threadCountMin);
+        }
     }
 
     @Override
     public void helper() {
-
+        try {
+            SblServiceStatistic stat = statLast.clone();
+            if (debug) {
+                Util.logConsole(Thread.currentThread(), "CountThread: " + stat.getThreadCount());
+            }
+            if (threadParkQueue.size() == 0) { //Добавляем ровно столько же
+                overclocking(threadList.size());
+            } else if (stat.getThreadCount() > threadCountMin) { //нет необходимости удалять, когда потоков заявленный минимум
+                checkKeepAliveAndRemoveThread();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void tick() {
-        System.out.println("Tick");
+        if (!isNotActive() && threadParkQueue.size() > 0) { //При маленькой нагрузке будет дёргаться всегда последний тред, а все остальные начнут отмирать
+            wakeUpThread();
+        }
     }
 
     @Override

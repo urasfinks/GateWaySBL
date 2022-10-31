@@ -26,4 +26,8 @@ public interface SblService {
 
     AtomicInteger getTpsMain();
 
+    void incThreadMax();
+
+    void decThreadMax();
+
 }

@@ -15,7 +15,7 @@ public abstract class CmpServiceScheduler extends SblSchedulerAbstract {
     }
 
     @Override
-    public Consumer<Void> getConsumer() {
+    public <T> Consumer<T> getConsumer() {
         return (t) -> {
             try {
                 List<Object> objects = Util.forEach(CmpService.toArray(getCmpService().getListService()), getSblServiceHandler());

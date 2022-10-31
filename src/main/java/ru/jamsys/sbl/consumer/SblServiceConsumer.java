@@ -1,8 +1,10 @@
 package ru.jamsys.sbl.consumer;
 
 import lombok.Getter;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 import ru.jamsys.sbl.thread.SblService;
-import ru.jamsys.sbl.thread.SblServiceImpl;
+import ru.jamsys.sbl.thread.SblServiceAbstract;
 import ru.jamsys.sbl.SblServiceStatistic;
 import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.thread.WrapThread;
@@ -14,18 +16,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 @Getter
-public class SblServiceConsumer extends SblServiceImpl implements Consumer<Message> {
+@Component
+@Scope("prototype")
+public class SblServiceConsumer extends SblServiceAbstract implements Consumer<Message> {
 
-    private final Consumer<Message> consumer;
-    private ConcurrentLinkedDeque<Message> queueTask = new ConcurrentLinkedDeque<>();
+    private Consumer<Message> consumer;
+    private final ConcurrentLinkedDeque<Message> queueTask = new ConcurrentLinkedDeque<>();
     protected AtomicInteger tpsInput = new AtomicInteger(0);
 
     protected volatile int tpsInputMax = -1; //-1 infinity
 
-    public SblServiceConsumer(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, Consumer<Message> consumer) {
-        super(name, threadCountMin, threadCountMax, threadKeepAliveMillis);
-        this.consumer = consumer;
-        overclocking(threadCountMin);
+    public void configure(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, Consumer<Message> consumer) {
+        if (super.configure(name, threadCountMin, threadCountMax, threadKeepAliveMillis)) {
+            this.consumer = consumer;
+            overclocking(threadCountMin);
+        }
     }
 
     @Override
@@ -49,7 +54,7 @@ public class SblServiceConsumer extends SblServiceImpl implements Consumer<Messa
     }
 
     @Override
-    public void iteration(WrapThread wrapThread, SblService service){
+    public void iteration(WrapThread wrapThread, SblService service) {
         while (!queueTask.isEmpty() && wrapThread.getIsRun().get()) { //Всегда проверяем, что поток не выводят из эксплуатации
             Message message = queueTask.pollLast();
             if (message != null) {
@@ -97,26 +102,14 @@ public class SblServiceConsumer extends SblServiceImpl implements Consumer<Messa
             if (stat.getQueueSize() > 0) { //Если очередь наполнена
                 //Расчет необходимого кол-ва потоков, что бы обработать всю очередь
                 int needCountThread = SblConsumerUtil.getNeedCountThread(stat);
-                if (needCountThread > 0 && threadList.size() < threadCountMax) {
+                if (needCountThread > 0 && threadList.size() < threadCountMax.get()) {
                     if (debug) {
                         Util.logConsole(Thread.currentThread(), "addThread: " + needCountThread);
                     }
                     overclocking(needCountThread);
                 }
             } else if (stat.getThreadCount() > threadCountMin) { //нет необходимости удалять, когда потоков заявленный минимум
-                long now = System.currentTimeMillis();
-                //Хотелось, что бы удаление было 1 тред в секунду, но так как helper запускается раз в 2 секунды, то и удалять будем по 2
-                final AtomicInteger c = new AtomicInteger(2);
-                Util.forEach(WrapThread.toArray(threadList), (wth) -> {
-                    long future = wth.getLastWakeUp() + threadKeepAlive;
-                    //Время последнего оживления превысило keepAlive + поток реально не работал
-                    if (now > future && wth.getCountIteration().get() == 0 && c.getAndDecrement() > 0) {
-                        removeThread(wth);
-                    } else {
-                        wth.getCountIteration().set(0);
-                    }
-                    return null;
-                });
+                checkKeepAliveAndRemoveThread();
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -1,5 +1,7 @@
 package ru.jamsys.sbl.component;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 import ru.jamsys.sbl.consumer.SblServiceConsumer;
 import ru.jamsys.sbl.consumer.SblConsumerShutdownException;
@@ -18,6 +20,13 @@ import java.util.function.Supplier;
 @Component
 public class CmpService {
 
+    private ApplicationContext context;
+
+    @Autowired
+    public void setContext(ApplicationContext context) {
+        this.context = context;
+    }
+
     Map<String, SblService> listService = new ConcurrentHashMap<>();
 
     public List<SblService> getListService() {
@@ -25,15 +34,17 @@ public class CmpService {
     }
 
     public SblService instance(String name, int countThreadMin, int countThreadMax, long keepAliveMills, Consumer<Message> consumer) {
-        SblServiceConsumer cs = new SblServiceConsumer(name, countThreadMin, countThreadMax, keepAliveMills, consumer);
-        listService.put(name, cs);
-        return cs;
+        SblServiceConsumer sblServiceConsumer = context.getBean(SblServiceConsumer.class);
+        sblServiceConsumer.configure(name, countThreadMin, countThreadMax, keepAliveMills, consumer);
+        listService.put(name, sblServiceConsumer);
+        return sblServiceConsumer;
     }
 
     public SblService instance(String name, int countThreadMin, int countThreadMax, long keepAlive, long threadSleepMillis, Supplier<Message> supplier) {
-        SblServiceSupplier cs = new SblServiceSupplier(name, countThreadMin, countThreadMax, keepAlive, threadSleepMillis, supplier);
-        listService.put(name, cs);
-        return cs;
+        SblServiceSupplier sblServiceSupplier = context.getBean(SblServiceSupplier.class);
+        sblServiceSupplier.configure(name, countThreadMin, countThreadMax, keepAlive, threadSleepMillis, supplier);
+        listService.put(name, sblServiceSupplier);
+        return sblServiceSupplier;
     }
 
     public static SblService[] toArray(List<SblService> l) throws Exception {

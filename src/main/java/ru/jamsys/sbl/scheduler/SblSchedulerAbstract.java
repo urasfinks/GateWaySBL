@@ -17,12 +17,12 @@ public abstract class SblSchedulerAbstract implements SblScheduler {
     protected boolean debug = false;
 
     private final ScheduledExecutorService executor;
-    private AtomicBoolean isRun = new AtomicBoolean(false);
+    private final AtomicBoolean isRun = new AtomicBoolean(false);
 
     @Getter
-    private String name;
+    private final String name;
     @Getter
-    private long periodMillis;
+    private final long periodMillis;
 
     public SblSchedulerAbstract(String name, long periodMillis) {
         this.name = name;
