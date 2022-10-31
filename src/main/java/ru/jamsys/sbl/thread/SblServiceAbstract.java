@@ -78,8 +78,8 @@ public abstract class SblServiceAbstract implements SblService {
         return statLast;
     }
 
-    protected boolean isNotActive() {
-        return !isActive.get();
+    protected boolean isActive() {
+        return isActive.get();
     }
 
     public void shutdown() throws SblConsumerShutdownException {
@@ -140,7 +140,7 @@ public abstract class SblServiceAbstract implements SblService {
     }
 
     protected void overclocking(int count) {
-        if (isNotActive() || threadList.size() == threadCountMax.get()) {
+        if (!isActive() || threadList.size() == threadCountMax.get()) {
             return;
         }
         for (int i = 0; i < count; i++) {

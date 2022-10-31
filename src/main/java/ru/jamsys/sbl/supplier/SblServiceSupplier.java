@@ -53,7 +53,7 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
     }
 
     public void tick() {
-        if (!isNotActive() && threadParkQueue.size() > 0) { //При маленькой нагрузке будет дёргаться всегда последний тред, а все остальные начнут отмирать
+        if (isActive() && threadParkQueue.size() > 0) { //При маленькой нагрузке будет дёргаться всегда последний тред, а все остальные под нож
             wakeUpThread();
         }
     }

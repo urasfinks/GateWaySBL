@@ -35,7 +35,7 @@ public class SblServiceConsumer extends SblServiceAbstract implements Consumer<M
 
     @Override
     public void accept(Message message) throws SblConsumerShutdownException, SblConsumerTpsOverflowException {
-        if (isNotActive()) {
+        if (!isActive()) {
             throw new SblConsumerShutdownException("Consumer shutdown");
         }
         if (isLimitTpsMain()) {
