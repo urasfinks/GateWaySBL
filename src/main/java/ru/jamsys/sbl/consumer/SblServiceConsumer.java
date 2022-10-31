@@ -22,8 +22,8 @@ public class SblServiceConsumer extends SblServiceImpl implements Consumer<Messa
 
     protected volatile int tpsInputMax = -1; //-1 infinity
 
-    public SblServiceConsumer(String name, int threadCountMin, int threadCountMax, long threadKeepAlive, Consumer<Message> consumer) {
-        super(name, threadCountMin, threadCountMax, threadKeepAlive);
+    public SblServiceConsumer(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, Consumer<Message> consumer) {
+        super(name, threadCountMin, threadCountMax, threadKeepAliveMillis);
         this.consumer = consumer;
         overclocking(threadCountMin);
     }

@@ -6,7 +6,7 @@ public interface SblScheduler {
 
     void run();
 
-    Consumer<Void> getConsumer();
+    <T> Consumer<T> getConsumer();
 
     void shutdown();
 

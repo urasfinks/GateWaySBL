@@ -22,17 +22,21 @@ public abstract class SblSchedulerAbstract implements SblScheduler {
     @Getter
     private String name;
     @Getter
-    private int periodMillis;
+    private long periodMillis;
 
-    public SblSchedulerAbstract(String name, int periodMillis) {
+    public SblSchedulerAbstract(String name, long periodMillis) {
         this.name = name;
         this.periodMillis = periodMillis;
         executor = Executors.newScheduledThreadPool(1, new NamedThreadFactory(getName()));
     }
 
     public void run() {
+        run(null);
+    }
+
+    public <T> void run(T t) {
         if (isRun.compareAndSet(false, true)) {
-            executor.scheduleAtFixedRate(() -> getConsumer().accept(null), 1, getPeriodMillis(), TimeUnit.MILLISECONDS);
+            executor.scheduleAtFixedRate(() -> getConsumer().accept(t), 1, getPeriodMillis(), TimeUnit.MILLISECONDS);
         }
     }
 

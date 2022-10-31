@@ -24,14 +24,14 @@ public class CmpService {
         return new ArrayList<>(listService.values());
     }
 
-    public SblService instance(String name, int countThreadMin, int countThreadMax, long keepAlive, Consumer<Message> consumer) {
-        SblServiceConsumer cs = new SblServiceConsumer(name, countThreadMin, countThreadMax, keepAlive, consumer);
+    public SblService instance(String name, int countThreadMin, int countThreadMax, long keepAliveMills, Consumer<Message> consumer) {
+        SblServiceConsumer cs = new SblServiceConsumer(name, countThreadMin, countThreadMax, keepAliveMills, consumer);
         listService.put(name, cs);
         return cs;
     }
 
-    public SblService instance(String name, int countThreadMin, int countThreadMax, long keepAlive, Supplier<Message> supplier) {
-        SblServiceSupplier cs = new SblServiceSupplier(name, countThreadMin, countThreadMax, keepAlive, supplier);
+    public SblService instance(String name, int countThreadMin, int countThreadMax, long keepAlive, long threadSleepMillis, Supplier<Message> supplier) {
+        SblServiceSupplier cs = new SblServiceSupplier(name, countThreadMin, countThreadMax, keepAlive, threadSleepMillis, supplier);
         listService.put(name, cs);
         return cs;
     }

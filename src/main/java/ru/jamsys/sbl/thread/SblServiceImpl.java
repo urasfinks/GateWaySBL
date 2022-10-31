@@ -38,11 +38,11 @@ public abstract class SblServiceImpl implements SblService {
     @Setter
     protected boolean debug = false;
 
-    public SblServiceImpl(String name, int threadCountMin, int threadCountMax, long threadKeepAlive) {
+    public SblServiceImpl(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis) {
         this.name = name;
         this.threadCountMin = threadCountMin;
         this.threadCountMax = threadCountMax;
-        this.threadKeepAlive = threadKeepAlive;
+        this.threadKeepAlive = threadKeepAliveMillis;
     }
 
     protected boolean isLimitTpsMain(){
