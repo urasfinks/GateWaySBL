@@ -81,7 +81,7 @@ class SblServiceConsumerTest {
             //Util.logConsole("[" + c.incrementAndGet() + "] " + msg.getCorrelation());
         });
         test.setDebug(true);
-        test.setTpsInputMax(tpsInputMax);
+        test.setTpsMainMax(tpsInputMax);
 
         AtomicInteger realInsert = new AtomicInteger(0);
 

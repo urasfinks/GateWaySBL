@@ -18,6 +18,9 @@ public class SblServiceConsumer extends SblServiceImpl implements Consumer<Messa
 
     private final Consumer<Message> consumer;
     private ConcurrentLinkedDeque<Message> queueTask = new ConcurrentLinkedDeque<>();
+    protected AtomicInteger tpsInput = new AtomicInteger(0);
+
+    protected volatile int tpsInputMax = -1; //-1 infinity
 
     public SblServiceConsumer(String name, int threadCountMin, int threadCountMax, long threadKeepAlive, Consumer<Message> consumer) {
         super(name, threadCountMin, threadCountMax, threadKeepAlive);
@@ -30,11 +33,11 @@ public class SblServiceConsumer extends SblServiceImpl implements Consumer<Messa
         if (isNotActive()) {
             throw new SblConsumerShutdownException("Consumer shutdown");
         }
-        if (tpsInputMax > 0 && tpsInput.get() >= tpsInputMax) {
+        if (isLimitTpsMain()) {
             throw new SblConsumerTpsOverflowException("Max tps: " + tpsInputMax);
         }
         queueTask.add(message);
-        tpsInput.incrementAndGet();
+        incTpsMain();
         message.onHandle(MessageHandle.PUT, this);
         if (threadParkQueue.size() > 0) {//Если ждунов нет, то и вообще ничего делать не надо
             if (threadParkQueue.size() == threadList.size()) { //Если общее кол-во тредов равно коли-ву ждунов
@@ -63,14 +66,25 @@ public class SblServiceConsumer extends SblServiceImpl implements Consumer<Messa
     }
 
     @Override
+    public void setTpsMainMax(int max) {
+        tpsInputMax = max;
+    }
+
+    @Override
+    public AtomicInteger getTpsMain() {
+        return tpsInput;
+    }
+
+    @Override
+    public int getTpsMainMax() {
+        return tpsInputMax;
+    }
+
+    @Override
     public SblServiceStatistic statistic() {
         statLast.setTpsInput(tpsInput.getAndSet(0));
-        statLast.setTpsIdle(tpsIdle.getAndSet(0));
-        statLast.setTpsOutput(tpsOutput.getAndSet(0));
-        statLast.setThreadCount(threadList.size());
         statLast.setQueueSize(queueTask.size());
-        statLast.setThreadCountPark(threadParkQueue.size());
-        return statLast;
+        return super.statistic();
     }
 
     @Override

@@ -36,7 +36,7 @@ class SblServiceSupplierTest {
     void run(int countThreadMin, int countThreadMax, long keepAlive, int countIteration, int countMessage, int sleep, Consumer<SblServiceStatistic> fnExpected) {
         SblService test = context.getBean(CmpService.class).instance("Test", countThreadMin, countThreadMax, keepAlive, MessageImpl::new);
         test.setDebug(true);
-        test.setTpsInputMax(5);
+        test.setTpsMainMax(5);
         UtilTest.sleep(sleep);
     }
 

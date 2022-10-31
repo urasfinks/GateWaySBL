@@ -31,21 +31,35 @@ public abstract class SblServiceImpl implements SblService {
 
     protected AtomicInteger tpsIdle = new AtomicInteger(0);
     protected AtomicInteger tpsOutput = new AtomicInteger(0);
-    protected AtomicInteger tpsInput = new AtomicInteger(0);
+
 
     protected volatile SblServiceStatistic statLast = new SblServiceStatistic();
 
     @Setter
     protected boolean debug = false;
 
-    @Setter
-    protected volatile int tpsInputMax = -1; //-1 infinity
-
     public SblServiceImpl(String name, int threadCountMin, int threadCountMax, long threadKeepAlive) {
         this.name = name;
         this.threadCountMin = threadCountMin;
         this.threadCountMax = threadCountMax;
         this.threadKeepAlive = threadKeepAlive;
+    }
+
+    protected boolean isLimitTpsMain(){
+        return getTpsMainMax() > 0 && getTpsMain().get() >= getTpsMainMax();
+    }
+
+    protected void incTpsMain(){
+        getTpsMain().incrementAndGet();
+    }
+
+    @Override
+    public SblServiceStatistic statistic() {
+        statLast.setTpsIdle(tpsIdle.getAndSet(0));
+        statLast.setTpsOutput(tpsOutput.getAndSet(0));
+        statLast.setThreadCount(threadList.size());
+        statLast.setThreadCountPark(threadParkQueue.size());
+        return statLast;
     }
 
     protected boolean isNotActive() {
