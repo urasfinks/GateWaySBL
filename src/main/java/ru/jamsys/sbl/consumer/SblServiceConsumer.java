@@ -1,6 +1,5 @@
 package ru.jamsys.sbl.consumer;
 
-import lombok.Getter;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import ru.jamsys.sbl.thread.SblService;
@@ -11,6 +10,8 @@ import ru.jamsys.sbl.thread.WrapThread;
 import ru.jamsys.sbl.message.Message;
 import ru.jamsys.sbl.message.MessageHandle;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
@@ -52,11 +53,12 @@ public class SblServiceConsumer extends SblServiceAbstract implements Consumer<M
         while (isActive() && !queueTask.isEmpty() && wrapThread.getIsRun().get()) { //Всегда проверяем, что поток не выводят из эксплуатации
             Message message = queueTask.pollLast();
             if (message != null) {
-                incTpsOutput();
+                long startTime = System.currentTimeMillis();
                 message.onHandle(MessageHandle.EXECUTE, service);
                 try {
                     consumer.accept(message);
                     message.onHandle(MessageHandle.COMPLETE, service);
+                    incTpsOutput(System.currentTimeMillis() - startTime);
                 } catch (Exception e) {
                     message.setError(e);
                 }
@@ -80,7 +82,7 @@ public class SblServiceConsumer extends SblServiceAbstract implements Consumer<M
             }
             if (stat.getQueueSize() > 0) { //Если очередь наполнена
                 //Расчет необходимого кол-ва потоков, что бы обработать всю очередь
-                int needCountThread = SblConsumerUtil.getNeedCountThread(stat);
+                int needCountThread = getNeedCountThread(stat);
                 if (needCountThread > 0 && isThreadAdd()) {
                     if (debug) {
                         Util.logConsole(Thread.currentThread(), "addThread: " + needCountThread);
@@ -93,6 +95,23 @@ public class SblServiceConsumer extends SblServiceAbstract implements Consumer<M
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static int getNeedCountThread(SblServiceStatistic stat) {
+        try {
+            int tpsOutput = stat.getTpsOutput();
+            return new BigDecimal(stat.getQueueSize())
+                    .divide(
+                            new BigDecimal(tpsOutput == 0 ? 1 : tpsOutput) //Если все потоки встали и не один не отдал ни одного tps схватим / by zero
+                                    .divide(new BigDecimal(stat.getThreadCount()), 2, RoundingMode.HALF_UP),
+                            2, RoundingMode.HALF_UP
+                    )
+                    .setScale(0, RoundingMode.CEILING)
+                    .intValue();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0;
     }
 
 }

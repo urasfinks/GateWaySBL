@@ -9,6 +9,7 @@ import ru.jamsys.sbl.component.CmpThreadStabilizer;
 import ru.jamsys.sbl.component.CmpService;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.message.MessageImpl;
+import ru.jamsys.sbl.supplier.SblServiceSupplier;
 import ru.jamsys.sbl.thread.SblService;
 
 import java.util.function.Consumer;
@@ -58,6 +59,14 @@ class SblServiceSupplierTest {
             fnExpected.accept(clone);
         }
         context.getBean(CmpService.class).shutdown("Test");
+    }
+
+    @Test
+    void getNeedCountThread() {
+        Assertions.assertEquals(125, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instance(500,100,150, 1), 250, true), "#1");
+        Assertions.assertEquals(63, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instance(500,100,150, 125), 250, true), "#2");
+        Assertions.assertEquals(0, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instance(500,100,0, 1), 250, true), "#3");
+        Assertions.assertEquals(10, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instance(500,50,10, 1), 250, true), "#4");
     }
 
 }

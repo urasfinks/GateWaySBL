@@ -11,9 +11,10 @@ import ru.jamsys.sbl.thread.SblService;
 import ru.jamsys.sbl.thread.SblServiceAbstract;
 import ru.jamsys.sbl.thread.WrapThread;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 
 @Component
 @Scope("prototype")
@@ -52,11 +53,18 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
         }
     }
 
+    @Override
+    public SblServiceStatistic statistic() {
+
+        return super.statistic();
+    }
+
     public void tick() {
         //При маленькой нагрузке дёргаем всегда последний тред, что бы не было простоев
         //Далее раскрутку оставляем на откуп стабилизатору
         if (isActive()) {
-            int diffTpsInput = getDiffTpsInput();
+            SblServiceStatistic stat = getStatClone();
+            int diffTpsInput = getNeedCountThread(stat, getTpsInputMax(), debug);
             if (isThreadParkAll()) {
                 wakeUpOnceThread();
             } else if (diffTpsInput > 0) {
@@ -74,14 +82,14 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
     public void iteration(WrapThread wrapThread, SblService service) {
         while (isActive() && wrapThread.getIsRun().get() && !isLimitTpsInputOverflow()) {
             incTpsInput();
+            long startTime = System.currentTimeMillis();
             Message message = get();
             if (message != null) {
-                incTpsOutput();
+                incTpsOutput(System.currentTimeMillis() - startTime);
             } else {
                 break;
             }
         }
-        //System.out.println("Finish: isActive: " + isActive + "; threadIsRun: " + wrapThread.getIsRun().get() + "; isLimitOverflow: " + (isLimitTpsMainOverflow()));
     }
 
     @Override
@@ -93,6 +101,32 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
     public void shutdown() throws SblConsumerShutdownException {
         super.shutdown();
         scheduler.shutdown();
+    }
+
+    public static int getNeedCountThread(SblServiceStatistic stat, int tpsInputMax, boolean debug) {
+        int needTransaction = tpsInputMax - stat.getTpsInput();
+        if (needTransaction > 0) {
+            try {
+                BigDecimal threadTps = new BigDecimal(1000)
+                        .divide(BigDecimal.valueOf(stat.getSumTimeTpsAvg()), 2, RoundingMode.HALF_UP);
+                int needThread = new BigDecimal(needTransaction)
+                        .divide(threadTps, 2, RoundingMode.HALF_UP)
+                        .setScale(0, RoundingMode.CEILING)
+                        .intValue();
+                needThread = Math.min(needThread, stat.getThreadCountPark());
+//                if (debug) {
+//                    Util.logConsole(Thread.currentThread(), "getNeedCountThreadSupplier: needTransaction: " + needTransaction + "; threadTps: " + threadTps + "; needThread: " + needThread + "; " + stat);
+//                }
+                return needThread;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            if (debug) {
+                Util.logConsole(Thread.currentThread(), "getNeedCountThreadSupplier: needTransaction: " + needTransaction + "; threadTps: ?; needThread: 0; " + stat);
+            }
+        }
+        return 0;
     }
 
 }

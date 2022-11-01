@@ -118,4 +118,22 @@ class SblServiceConsumerTest {
         context.getBean(CmpService.class).shutdown("Test");
     }
 
+    @Test
+    void getNeedCountThread() {
+        Assertions.assertEquals(0, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(100,1,0)), "#1");
+        Assertions.assertEquals(1, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(10,1,10)), "#2");
+        Assertions.assertEquals(2, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(10,1,20)), "#3");
+        Assertions.assertEquals(3, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(10,1,30)), "#4");
+        Assertions.assertEquals(0, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(10,2,0)), "#5");
+        Assertions.assertEquals(1, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(10,2,5)), "#6");
+        Assertions.assertEquals(2, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(10,2,10)), "#7");
+        Assertions.assertEquals(6, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(10,2,30)), "#8");
+        Assertions.assertEquals(1, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(100,2,30)), "#9");
+        Assertions.assertEquals(1, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(100,3,30)), "#10");
+        Assertions.assertEquals(9, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(100,3,300)), "#11");
+
+        //Плохие сценарии
+        Assertions.assertEquals(300, SblServiceConsumer.getNeedCountThread(SblServiceStatistic.instance(0,1,300)), "#12");
+    }
+
 }

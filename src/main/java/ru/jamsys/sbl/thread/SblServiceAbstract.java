@@ -39,6 +39,8 @@ public abstract class SblServiceAbstract implements SblService {
 
     private volatile SblServiceStatistic statLast = new SblServiceStatistic();
 
+    private final ConcurrentLinkedDeque<Long> timeTransactionQueue = new ConcurrentLinkedDeque<>();
+
     public SblServiceStatistic getStatLast() {
         return statLast;
     }
@@ -73,6 +75,8 @@ public abstract class SblServiceAbstract implements SblService {
         statLast.setTpsOutput(tpsOutput.getAndSet(0));
         statLast.setThreadCount(threadList.size());
         statLast.setThreadCountPark(threadParkQueue.size());
+        statLast.setTimeTransaction(timeTransactionQueue);
+        timeTransactionQueue.clear();
         return statLast;
     }
 
@@ -135,29 +139,14 @@ public abstract class SblServiceAbstract implements SblService {
         return tpsInputMax > 0 && tpsInput.get() >= tpsInputMax;
     }
 
-    protected int getDiffTpsInput() {
-        SblServiceStatistic stat = getStatClone();
-        //return tpsInputMax > 0 ? (tpsInputMax - stat.getTpsInput()) : threadParkQueue.size();
-        if (tpsInputMax > 0) {
-            int tpsInputGet = tpsInput.get();
-            int x = tpsInputMax - tpsInputGet;
-            int threadParkQueueSize = getThreadParkQueueSize();
-            if (x > threadParkQueueSize) {
-                x = threadParkQueueSize;
-            }
-            x = x/4;
-            System.out.println("DIFF: tpsInputMax: " + tpsInputMax + "; tpsInput: " + tpsInputGet + "; => " + x + "; Park: " + threadParkQueueSize);
-            return x;
-        } else {
-            return threadParkQueue.size();
-        }
-    }
-
     protected void incTpsInput() {
         tpsInput.incrementAndGet();
     }
 
-    protected void incTpsOutput() {
+    protected void incTpsOutput(long time) {
+        if (time > 0) {
+            timeTransactionQueue.add(time);
+        }
         tpsOutput.incrementAndGet();
     }
 
@@ -228,9 +217,9 @@ public abstract class SblServiceAbstract implements SblService {
             LockSupport.unpark(wrapThread.getThread()); //Мы его оживляем, что бы он закончился
             threadList.remove(wrapThread);
             threadParkQueue.remove(wrapThread); // На всякий случай
-            if (debug) {
-                Util.logConsole(Thread.currentThread(), "removeThread: " + wrapThread);
-            }
+//            if (debug) {
+//                Util.logConsole(Thread.currentThread(), "removeThread: " + wrapThread);
+//            }
         }
     }
 
