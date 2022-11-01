@@ -63,10 +63,11 @@ class SblServiceSupplierTest {
 
     @Test
     void getNeedCountThread() {
-        Assertions.assertEquals(125, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instance(500,100,150, 1), 250, true), "#1");
-        Assertions.assertEquals(63, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instance(500,100,150, 125), 250, true), "#2");
-        Assertions.assertEquals(0, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instance(500,100,0, 1), 250, true), "#3");
-        Assertions.assertEquals(10, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instance(500,50,10, 1), 250, true), "#4");
+        Assertions.assertEquals(125, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instanceSupplierTest(500,100,150, 1), 250, true), "#1");
+        Assertions.assertEquals(63, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instanceSupplierTest(500,100,150, 125), 250, true), "#2");
+        Assertions.assertEquals(0, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instanceSupplierTest(500,100,0, 1), 250, true), "#3");
+        Assertions.assertEquals(10, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instanceSupplierTest(500,50,10, 1), 250, true), "#4");
+        Assertions.assertEquals(10, SblServiceSupplier.getNeedCountThread(SblServiceStatistic.instanceSupplierTest(0,50,10, 1), 250, true), "#5");
     }
 
 }

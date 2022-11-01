@@ -29,15 +29,15 @@ public abstract class SblServiceAbstract implements SblService {
 
     private final AtomicInteger threadNameCounter = new AtomicInteger(0);
 
-    private AtomicBoolean isActive = new AtomicBoolean(false);
-    private List<WrapThread> threadList = new CopyOnWriteArrayList<>();
-    private ConcurrentLinkedDeque<WrapThread> threadParkQueue = new ConcurrentLinkedDeque<>();
+    private final AtomicBoolean isActive = new AtomicBoolean(false);
+    private final List<WrapThread> threadList = new CopyOnWriteArrayList<>();
+    private final ConcurrentLinkedDeque<WrapThread> threadParkQueue = new ConcurrentLinkedDeque<>();
 
-    private AtomicInteger tpsIdle = new AtomicInteger(0);
-    private AtomicInteger tpsInput = new AtomicInteger(0);
-    private AtomicInteger tpsOutput = new AtomicInteger(0);
+    private final AtomicInteger tpsIdle = new AtomicInteger(0);
+    private final AtomicInteger tpsInput = new AtomicInteger(0);
+    private final AtomicInteger tpsOutput = new AtomicInteger(0);
 
-    private volatile SblServiceStatistic statLast = new SblServiceStatistic();
+    private final SblServiceStatistic statLast = new SblServiceStatistic();
 
     private final ConcurrentLinkedDeque<Long> timeTransactionQueue = new ConcurrentLinkedDeque<>();
 

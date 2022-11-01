@@ -35,15 +35,16 @@ public class SblServiceStatistic implements Cloneable {
         return null;
     }
 
-    public static SblServiceStatistic instance(int tpsOutput, int threadCount, int queueSize) {
+    public static SblServiceStatistic instanceConsumerTest(int tpsOutput, int threadCount, int queueSize, int tpsInput) {
         SblServiceStatistic t = new SblServiceStatistic();
         t.setTpsOutput(tpsOutput);
         t.setThreadCount(threadCount);
         t.setQueueSize(queueSize);
+        t.setTpsInput(tpsInput);
         return t;
     }
 
-    public static SblServiceStatistic instance(int sumTimeTpsAvg, int threadCount, int threadCountPark, int tpsInput) {
+    public static SblServiceStatistic instanceSupplierTest(int sumTimeTpsAvg, int threadCount, int threadCountPark, int tpsInput) {
         SblServiceStatistic t = new SblServiceStatistic();
         t.setSumTimeTpsAvg(sumTimeTpsAvg);
         t.setThreadCount(threadCount);

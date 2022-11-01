@@ -106,20 +106,27 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
     public static int getNeedCountThread(SblServiceStatistic stat, int tpsInputMax, boolean debug) {
         int needTransaction = tpsInputMax - stat.getTpsInput();
         if (needTransaction > 0) {
-            try {
-                BigDecimal threadTps = new BigDecimal(1000)
-                        .divide(BigDecimal.valueOf(stat.getSumTimeTpsAvg()), 2, RoundingMode.HALF_UP);
-                int needThread = new BigDecimal(needTransaction)
-                        .divide(threadTps, 2, RoundingMode.HALF_UP)
-                        .setScale(0, RoundingMode.CEILING)
-                        .intValue();
-                needThread = Math.min(needThread, stat.getThreadCountPark());
-//                if (debug) {
-//                    Util.logConsole(Thread.currentThread(), "getNeedCountThreadSupplier: needTransaction: " + needTransaction + "; threadTps: " + threadTps + "; needThread: " + needThread + "; " + stat);
-//                }
-                return needThread;
-            } catch (Exception e) {
-                e.printStackTrace();
+            // Может возникнуть такая ситуация, когда за 1 секунду не будет собрана статистика
+            if(stat.getSumTimeTpsAvg() > 0){
+                try {
+                    BigDecimal threadTps = new BigDecimal(1000)
+                            .divide(BigDecimal.valueOf(stat.getSumTimeTpsAvg()), 2, RoundingMode.HALF_UP);
+                    int needThread = new BigDecimal(needTransaction)
+                            .divide(threadTps, 2, RoundingMode.HALF_UP)
+                            .setScale(0, RoundingMode.CEILING)
+                            .intValue();
+                    needThread = Math.min(needThread, stat.getThreadCountPark());
+                    if (debug) {
+                        Util.logConsole(Thread.currentThread(), "getNeedCountThreadSupplier: needTransaction: " + needTransaction + "; threadTps: " + threadTps + "; needThread: " + needThread + "; " + stat);
+                    }
+                    return needThread;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }else{
+                // getSumTimeTpsAvg = 0 => / zero, если нет статистики значит, все потоки встали на одну транзакцию
+                // Но могут быть запаркованные с предыдущей операции
+                return stat.getThreadCountPark();
             }
         } else {
             if (debug) {
