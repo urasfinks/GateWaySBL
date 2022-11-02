@@ -1,6 +1,7 @@
 package ru.jamsys.sbl;
 
 import lombok.Data;
+import reactor.util.annotation.Nullable;
 
 import java.util.LongSummaryStatistics;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -26,6 +27,7 @@ public class SblServiceStatistic implements Cloneable {
         sumTimeTpsAvg = avgTimeTps.getMin();
     }
 
+    @Nullable
     public SblServiceStatistic clone() {
         try {
             return (SblServiceStatistic) super.clone();

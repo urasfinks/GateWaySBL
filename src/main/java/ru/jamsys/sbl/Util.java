@@ -8,12 +8,7 @@ import java.util.function.Function;
 
 public class Util {
 
-    public static String[] toArray(List<String> l) throws Exception {
-        //concurrent modification exception, да тут не может быть исключения,
-        // но так лучше что бы не забывали обработать исключения при работе в многопоточном доступе
-        return l.toArray(new String[0]);
-    }
-
+    @SuppressWarnings("unused")
     public static <T> void printArray(T[] arr) {
         System.out.println(Arrays.toString(arr));
     }
@@ -33,6 +28,7 @@ public class Util {
         System.out.println(LocalDateTime.now().toString() + " " + t.getName() + " " + data);
     }
 
+    @SuppressWarnings("unused")
     public static long getTimestamp() {
         return System.currentTimeMillis() / 1000;
     }

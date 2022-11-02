@@ -1,8 +1,7 @@
-package ru.jamsys.sbl.thread;
+package ru.jamsys.sbl.service.thread;
 
 import lombok.Data;
 
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -16,10 +15,6 @@ public class WrapThread {
 
     public void incCountIteration() {
         countIteration.incrementAndGet();
-    }
-
-    public static WrapThread[] toArray(List<WrapThread> l) throws Exception {
-        return l.toArray(new WrapThread[0]);
     }
 
 }

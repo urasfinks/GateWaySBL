@@ -3,7 +3,7 @@ package ru.jamsys.sbl.scheduler;
 import lombok.Getter;
 import lombok.Setter;
 
-import ru.jamsys.sbl.thread.NamedThreadFactory;
+import ru.jamsys.sbl.service.thread.SblThreadFactory;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -27,7 +27,7 @@ public abstract class SblSchedulerAbstract implements SblScheduler {
     public SblSchedulerAbstract(String name, long periodMillis) {
         this.name = name;
         this.periodMillis = periodMillis;
-        executor = Executors.newScheduledThreadPool(1, new NamedThreadFactory(getName()));
+        executor = Executors.newScheduledThreadPool(1, new SblThreadFactory(getName()));
     }
 
     public void run() {

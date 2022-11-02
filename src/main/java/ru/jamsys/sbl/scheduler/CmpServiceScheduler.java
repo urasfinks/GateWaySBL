@@ -1,8 +1,10 @@
 package ru.jamsys.sbl.scheduler;
 
+import reactor.util.annotation.Nullable;
 import ru.jamsys.sbl.Util;
+import ru.jamsys.sbl.UtilToArray;
 import ru.jamsys.sbl.component.CmpService;
-import ru.jamsys.sbl.thread.SblService;
+import ru.jamsys.sbl.service.SblService;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -18,10 +20,13 @@ public abstract class CmpServiceScheduler extends SblSchedulerAbstract {
     public <T> Consumer<T> getConsumer() {
         return (t) -> {
             try {
-                List<Object> objects = Util.forEach(CmpService.toArray(getCmpService().getListService()), getSblServiceHandler());
-                Consumer<Object> handler = getResultHandler();
-                if (handler != null) {
-                    handler.accept(objects);
+                CmpService cmpService = getCmpService();
+                if (cmpService != null) {
+                    List<Object> objects = Util.forEach(UtilToArray.toArraySblService(cmpService.getListService()), getSblServiceHandler());
+                    Consumer<Object> handler = getResultHandler();
+                    if (handler != null) {
+                        handler.accept(objects);
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -29,14 +34,17 @@ public abstract class CmpServiceScheduler extends SblSchedulerAbstract {
         };
     }
 
+    @Nullable
     protected CmpService getCmpService() {
         return null;
     }
 
+    @Nullable
     protected Function<SblService, Object> getSblServiceHandler() {
         return null;
     }
 
+    @Nullable
     protected Consumer<Object> getResultHandler() {
         return null;
     }

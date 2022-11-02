@@ -2,7 +2,7 @@ package ru.jamsys.sbl.message;
 
 import lombok.Getter;
 import lombok.Setter;
-import ru.jamsys.sbl.thread.SblService;
+import ru.jamsys.sbl.service.SblService;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 

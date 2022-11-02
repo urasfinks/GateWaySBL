@@ -1,6 +1,7 @@
-package ru.jamsys.sbl.thread;
+package ru.jamsys.sbl.service;
 
 import ru.jamsys.sbl.SblServiceStatistic;
+import ru.jamsys.sbl.service.thread.WrapThread;
 
 public interface SblService {
 
@@ -18,8 +19,10 @@ public interface SblService {
 
     SblServiceStatistic getStatClone();
 
+    @SuppressWarnings("unused")
     void incThreadMax();
 
+    @SuppressWarnings("unused")
     void decThreadMax();
 
     void setTpsInputMax(int maxTps);

@@ -2,7 +2,7 @@ package ru.jamsys.sbl.component;
 
 import org.springframework.stereotype.Component;
 import ru.jamsys.sbl.scheduler.CmpServiceScheduler;
-import ru.jamsys.sbl.thread.SblService;
+import ru.jamsys.sbl.service.SblService;
 
 import javax.annotation.PreDestroy;
 import java.util.function.Function;

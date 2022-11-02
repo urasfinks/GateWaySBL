@@ -1,12 +1,15 @@
-package ru.jamsys.sbl.consumer;
+package ru.jamsys.sbl.service;
 
+import lombok.NonNull;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import ru.jamsys.sbl.thread.SblService;
-import ru.jamsys.sbl.thread.SblServiceAbstract;
+import ru.jamsys.sbl.service.consumer.SblConsumerShutdownException;
+import ru.jamsys.sbl.service.consumer.SblConsumerTpsOverflowException;
+import ru.jamsys.sbl.scheduler.SblSchedulerTick;
+import ru.jamsys.sbl.service.thread.SblServiceAbstract;
 import ru.jamsys.sbl.SblServiceStatistic;
 import ru.jamsys.sbl.Util;
-import ru.jamsys.sbl.thread.WrapThread;
+import ru.jamsys.sbl.service.thread.WrapThread;
 import ru.jamsys.sbl.message.Message;
 import ru.jamsys.sbl.message.MessageHandle;
 
@@ -17,16 +20,24 @@ import java.util.function.Consumer;
 
 @Component
 @Scope("prototype")
-public class SblServiceConsumer extends SblServiceAbstract implements Consumer<Message> {
+public class SblServiceConsumer extends SblServiceAbstract implements Consumer<Message>, SblSchedulerTick {
 
     private Consumer<Message> consumer;
     private final ConcurrentLinkedDeque<Message> queueTask = new ConcurrentLinkedDeque<>();
 
+    public void configure(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, long schedulerSleepMillis, Consumer<Message> consumer) {
+        this.consumer = consumer;
+        super.configure(name, threadCountMin, threadCountMax, threadKeepAliveMillis, schedulerSleepMillis);
+    }
 
-    public void configure(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, Consumer<Message> consumer) {
-        if (super.configure(name, threadCountMin, threadCountMax, threadKeepAliveMillis)) {
-            this.consumer = consumer;
-            overclocking(threadCountMin);
+    @Override
+    public void tick() {
+        //При маленькой нагрузке дёргаем всегда последний тред, что бы не было простоев
+        //Далее раскрутку оставляем на откуп стабилизатору
+        if (isActive()) {
+            for (int i = 0; i < queueTask.size(); i++) {
+                wakeUpOnceThread();
+            }
         }
     }
 
@@ -41,11 +52,6 @@ public class SblServiceConsumer extends SblServiceAbstract implements Consumer<M
         queueTask.add(message);
         incTpsInput();
         message.onHandle(MessageHandle.PUT, this);
-        //Если в очереди есть задачи есть ждуны
-        // попробуем пробудить (так как add выше)
-        if (getThreadParkQueueSize() > 0 && queueTask.size() > 0) {
-            wakeUpOnceThread();
-        }
     }
 
     @Override
@@ -66,7 +72,6 @@ public class SblServiceConsumer extends SblServiceAbstract implements Consumer<M
         }
     }
 
-
     @Override
     public SblServiceStatistic statistic() {
         getStatLast().setQueueSize(queueTask.size());
@@ -77,39 +82,43 @@ public class SblServiceConsumer extends SblServiceAbstract implements Consumer<M
     public void threadStabilizer() {
         try {
             SblServiceStatistic stat = getStatClone();
-            if (debug) {
-                Util.logConsole(Thread.currentThread(), "QueueSize: " + stat.getQueueSize() + "; CountThread: " + stat.getThreadCount());
-            }
-            if (stat.getQueueSize() > 0) { //Если очередь наполнена
-                //Расчет необходимого кол-ва потоков, что бы обработать всю очередь
-                int needCountThread = getNeedCountThread(stat, debug);
-                if (needCountThread > 0 && isThreadAdd()) {
-                    if (debug) {
-                        Util.logConsole(Thread.currentThread(), "addThread: " + needCountThread);
-                    }
-                    overclocking(needCountThread);
+            if (stat != null) {
+                if (debug) {
+                    Util.logConsole(Thread.currentThread(), "QueueSize: " + stat.getQueueSize() + "; CountThread: " + stat.getThreadCount());
                 }
-            } else if (isThreadRemove(stat)) { //нет необходимости удалять, когда потоков заявленный минимум
-                checkKeepAliveAndRemoveThread();
+                if (stat.getQueueSize() > 0) { //Если очередь наполнена
+                    //Расчет необходимого кол-ва потоков, что бы обработать всю очередь
+                    int needCountThread = getNeedCountThread(stat, debug);
+                    if (needCountThread > 0 && isThreadAdd()) {
+                        if (debug) {
+                            Util.logConsole(Thread.currentThread(), "addThread: " + needCountThread);
+                        }
+                        overclocking(needCountThread);
+                    }
+                } else if (isThreadRemove(stat)) { //нет необходимости удалять, когда потоков заявленный минимум
+                    checkKeepAliveAndRemoveThread();
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static int getNeedCountThread(SblServiceStatistic stat, boolean debug) {
+    public static int getNeedCountThread(@NonNull SblServiceStatistic stat, boolean debug) {
+        int needThread = 0;
+        BigDecimal threadTps = null;
         try {
-            BigDecimal threadTps = new BigDecimal(Math.max(stat.getTpsOutput(), 1)) //Если все потоки встали и не один не отдал ни одного tps схватим / by zero
+            threadTps = new BigDecimal(Math.max(stat.getTpsOutput(), 1)) //Если все потоки встали и не один не отдал ни одного tps схватим / by zero
                     .divide(new BigDecimal(Math.max(stat.getThreadCount(), 1)), 2, RoundingMode.HALF_UP);
             //Может случится такое, что потоки встанут на длительную работу или перестанут работать из-за отсутсвия задач
             //И средняя по транзакция будет равна 0
-            //System.out.println(threadTps.doubleValue() + "; " + BigDecimal.valueOf(0).doubleValue());
+
             if (threadTps.doubleValue() == 0.0) {
                 if (stat.getQueueSize() > 0) { //Задачи есть, вернём сколько потоков, столько и задач
-                    return stat.getQueueSize();
+                    needThread = stat.getQueueSize();
                 }
             } else {
-                return new BigDecimal(stat.getQueueSize())
+                needThread = new BigDecimal(stat.getQueueSize())
                         .divide(threadTps, 2, RoundingMode.HALF_UP)
                         .setScale(0, RoundingMode.CEILING)
                         .intValue();
@@ -117,7 +126,10 @@ public class SblServiceConsumer extends SblServiceAbstract implements Consumer<M
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return 0;
+        if (debug) {
+            Util.logConsole(Thread.currentThread(), "getNeedCountThreadConsumer: queueSize: " + stat.getQueueSize() + "; threadTps: " + threadTps + "; needThread: " + needThread + "; " + stat);
+        }
+        return needThread;
     }
 
 }

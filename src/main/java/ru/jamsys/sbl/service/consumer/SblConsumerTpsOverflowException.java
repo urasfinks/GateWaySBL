@@ -1,4 +1,4 @@
-package ru.jamsys.sbl.consumer;
+package ru.jamsys.sbl.service.consumer;
 
 public class SblConsumerTpsOverflowException extends RuntimeException {
 

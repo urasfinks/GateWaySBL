@@ -8,13 +8,15 @@ import org.springframework.context.ConfigurableApplicationContext;
 import ru.jamsys.sbl.component.CmpService;
 import ru.jamsys.sbl.component.CmpThreadStabilizer;
 import ru.jamsys.sbl.component.CmpStatistic;
-import ru.jamsys.sbl.consumer.SblServiceConsumer;
-import ru.jamsys.sbl.consumer.SblConsumerShutdownException;
-import ru.jamsys.sbl.consumer.SblConsumerTpsOverflowException;
+import ru.jamsys.sbl.service.SblServiceConsumer;
+import ru.jamsys.sbl.service.consumer.SblConsumerShutdownException;
+import ru.jamsys.sbl.service.consumer.SblConsumerTpsOverflowException;
 import ru.jamsys.sbl.message.Message;
 import ru.jamsys.sbl.message.MessageImpl;
-import ru.jamsys.sbl.thread.SblService;
+import ru.jamsys.sbl.service.SblService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -42,7 +44,7 @@ class SblServiceConsumerTest {
 
     @Test
     void damping() { //Проверяем удаление потоков после ненадобности
-        run(1, 5, 6000L, 2, 5, 17, -1, clone ->
+        run(1, 5, 6000L, 2, 5, 19, -1, clone ->
                 Assertions.assertEquals(1, clone.getThreadCount(), "Должен остаться только 1 поток")
         );
     }
@@ -56,51 +58,57 @@ class SblServiceConsumerTest {
 
     @Test
     void summaryCount() { //Проверяем, что сообщения все обработаны при большом кол-ве потоков
-        run(1, 1000, 16000L, 1, 5000, 10, -1, clone ->
+        run(1, 1000, 16000L, 1, 5000, 13, -1, clone ->
                 Assertions.assertEquals(1000, clone.getThreadCount(), "Кол-во потокв дожно быть 1000")
         );
     }
 
     @Test
     void tpsInputMax() { //Проверяем, что в очередь не падает больше 5 сообщений в секунду
-        run(1, 1, 16000L, 2, 20, 12, 5, clone ->
+        run(1, 1, 16000L, 2, 20, 15, 5, clone ->
                 Assertions.assertTrue(clone.getQueueSize() < 10, "Очередь слишком большая, для максимальных 5 тпс")
         );
     }
 
     void run(int countThreadMin, int countThreadMax, long keepAlive, int countIteration, int countMessage, int sleep, int tpsInputMax, Consumer<SblServiceStatistic> fnExpected) {
         Util.logConsole(Thread.currentThread(), "Start test");
-        AtomicInteger c = new AtomicInteger(0);
-        SblService test = context.getBean(CmpService.class).instance("Test", countThreadMin, countThreadMax, keepAlive, (msg) -> {
+        AtomicInteger serviceHandleCounter = new AtomicInteger(0);
+        SblService test = context.getBean(CmpService.class).instance("Test", countThreadMin, countThreadMax, keepAlive, 333, (msg) -> {
             try {
                 Thread.sleep(1000);
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            c.incrementAndGet();
+            serviceHandleCounter.incrementAndGet();
             //Util.logConsole("[" + c.incrementAndGet() + "] " + msg.getCorrelation());
         });
         test.setDebug(true);
         test.setTpsInputMax(tpsInputMax);
+        Util.logConsole(Thread.currentThread(), "Init Bean");
 
         AtomicInteger realInsert = new AtomicInteger(0);
 
         Thread t1 = new Thread(() -> {
             int count = 0;
+            Util.logConsole(Thread.currentThread(), "Run task thread");
             while (true) {
                 count++;
                 if (count == countIteration + 1) {
                     break;
                 }
+                List<Long> avgTime = new ArrayList<>();
                 for (int i = 0; i < countMessage; i++) {
                     Message message = new MessageImpl();
+                    long startTime = System.currentTimeMillis();
                     try {
                         ((SblServiceConsumer) test).accept(message);
                         realInsert.incrementAndGet();
                     } catch (SblConsumerShutdownException | SblConsumerTpsOverflowException e) {
-                        System.out.println(e.toString());
+                        Util.logConsole(Thread.currentThread(), e.toString());
                     }
+                    avgTime.add(System.currentTimeMillis() - startTime);
                 }
+                Util.logConsole(Thread.currentThread(), "Task insert: " + avgTime.stream().mapToLong(Long::longValue).summaryStatistics().toString());
                 try {
                     TimeUnit.MILLISECONDS.sleep(5000);
                 } catch (InterruptedException e) {
@@ -109,9 +117,11 @@ class SblServiceConsumerTest {
             }
         });
         t1.start();
+        Util.logConsole(Thread.currentThread(), "Init task thread");
         UtilTest.sleepSec(sleep);
-        Assertions.assertEquals(realInsert.get(), c.get(), "Не все задачи были обработаны");
+        Assertions.assertEquals(realInsert.get(), serviceHandleCounter.get(), "Не все задачи были обработаны");
         SblServiceStatistic clone = test.getStatClone();
+        Util.logConsole(Thread.currentThread(), "LAST STAT: " + clone);
         if (clone != null) {
             fnExpected.accept(clone);
         }
