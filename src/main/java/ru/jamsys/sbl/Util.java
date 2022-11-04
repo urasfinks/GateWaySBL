@@ -1,9 +1,14 @@
 package ru.jamsys.sbl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import reactor.util.annotation.Nullable;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 public class Util {
@@ -31,6 +36,25 @@ public class Util {
     @SuppressWarnings("unused")
     public static long getTimestamp() {
         return System.currentTimeMillis() / 1000;
+    }
+
+    @Nullable
+    public static String jsonObjectToString(Object o) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            return objectMapper.writeValueAsString(o);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static void sleepMillis(int seconds) {
+        try {
+            TimeUnit.MILLISECONDS.sleep(seconds);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
 }

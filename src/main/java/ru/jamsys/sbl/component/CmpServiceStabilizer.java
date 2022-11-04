@@ -8,12 +8,12 @@ import javax.annotation.PreDestroy;
 import java.util.function.Function;
 
 @Component
-public class CmpThreadStabilizer extends CmpServiceScheduler {
+public class CmpServiceStabilizer extends CmpServiceScheduler {
 
     final private CmpService cmpService;
 
-    public CmpThreadStabilizer(CmpService cmpService) {
-        super("ThreadStabilizer", 2000);
+    public CmpServiceStabilizer(CmpService cmpService) {
+        super("ServiceStabilizer", 2000);
         this.cmpService = cmpService;
     }
 
@@ -33,5 +33,10 @@ public class CmpThreadStabilizer extends CmpServiceScheduler {
     @PreDestroy
     public void destroy() {
         super.shutdown();
+    }
+
+    @Override
+    public void tick() {
+
     }
 }

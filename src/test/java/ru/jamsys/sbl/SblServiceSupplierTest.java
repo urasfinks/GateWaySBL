@@ -5,7 +5,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
-import ru.jamsys.sbl.component.CmpThreadStabilizer;
+import ru.jamsys.sbl.component.CmpServiceStabilizer;
 import ru.jamsys.sbl.component.CmpService;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.message.MessageImpl;
@@ -25,7 +25,7 @@ class SblServiceSupplierTest {
         CmpStatistic cmpConsumerStatistic = context.getBean(CmpStatistic.class);
         cmpConsumerStatistic.setDebug(true);
         cmpConsumerStatistic.run();
-        context.getBean(CmpThreadStabilizer.class).run();
+        context.getBean(CmpServiceStabilizer.class).run();
     }
 
     @Test
@@ -56,7 +56,7 @@ class SblServiceSupplierTest {
     void run(int countThreadMin, int countThreadMax, long keepAlive, int sleep, int maxTps, Consumer<SblServiceStatistic> fnExpected) {
         Util.logConsole(Thread.currentThread(), "Start test");
         SblService test = context.getBean(CmpService.class).instance("Test", countThreadMin, countThreadMax, keepAlive, 333, () -> {
-            UtilTest.sleepMillis(500);
+            Util.sleepMillis(500);
             return new MessageImpl();
         });
         test.setDebug(true);

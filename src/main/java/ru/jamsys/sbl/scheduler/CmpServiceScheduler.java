@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public abstract class CmpServiceScheduler extends SblSchedulerAbstract {
+public abstract class CmpServiceScheduler extends SblSchedulerAbstract implements SblSchedulerTick {
 
     public CmpServiceScheduler(String name, int periodMillis) {
         super(name, periodMillis);
@@ -28,6 +28,11 @@ public abstract class CmpServiceScheduler extends SblSchedulerAbstract {
                         handler.accept(objects);
                     }
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            try {
+                tick();
             } catch (Exception e) {
                 e.printStackTrace();
             }

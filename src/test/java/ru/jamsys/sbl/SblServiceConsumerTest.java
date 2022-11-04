@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import ru.jamsys.sbl.component.CmpService;
-import ru.jamsys.sbl.component.CmpThreadStabilizer;
+import ru.jamsys.sbl.component.CmpServiceStabilizer;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.service.SblServiceConsumer;
 import ru.jamsys.sbl.service.consumer.SblConsumerShutdownException;
@@ -32,7 +32,7 @@ class SblServiceConsumerTest {
         CmpStatistic cmpConsumerStatistic = context.getBean(CmpStatistic.class);
         cmpConsumerStatistic.setDebug(true);
         cmpConsumerStatistic.run();
-        context.getBean(CmpThreadStabilizer.class).run();
+        context.getBean(CmpServiceStabilizer.class).run();
     }
 
     @Test

@@ -12,12 +12,4 @@ public class UtilTest {
         }
     }
 
-    public static void sleepMillis(int seconds) {
-        try {
-            TimeUnit.MILLISECONDS.sleep(seconds);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
 }
