@@ -54,4 +54,9 @@ public abstract class CmpServiceScheduler extends SblSchedulerAbstract implement
         return null;
     }
 
+    @Override
+    public void tick() {
+
+    }
+
 }

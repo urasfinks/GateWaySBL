@@ -1,5 +1,6 @@
 package ru.jamsys.sbl;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import reactor.util.annotation.Nullable;
 
@@ -8,6 +9,9 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Data
 public class SblServiceStatistic implements Cloneable {
+
+    @JsonIgnore
+    String serviceName;
 
     int threadCount;
     int queueSize;

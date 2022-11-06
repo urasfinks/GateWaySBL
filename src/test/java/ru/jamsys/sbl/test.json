@@ -1,0 +1,17 @@
+{
+  "cpu": 0,
+  "service": {
+    "Test": {
+      "threadCount": 2,
+      "queueSize": 0,
+      "tpsInput": 4,
+      "tpsOutput": 3,
+      "tpsIdle": 1,
+      "threadCountPark": 0,
+      "sumTimeTpsMax": 502,
+      "sumTimeTpsMin": 500,
+      "sumTimeTpsAvg": 500.0
+    }
+  },
+  "timestamp": 1667629392839
+}

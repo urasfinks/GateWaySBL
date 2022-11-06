@@ -61,6 +61,7 @@ public abstract class SblServiceAbstract implements SblService {
 
     protected SblServiceStatistic getStatCurrent() {
         SblServiceStatistic curStat = new SblServiceStatistic();
+        curStat.setServiceName(getName());
         curStat.setTpsInput(tpsInput.get());//
         curStat.setThreadCountPark(threadParkQueue.size());//
         //Сумарная статистика дожна браться за более долгое время, поэтому просто копируем
@@ -88,6 +89,7 @@ public abstract class SblServiceAbstract implements SblService {
 
     @Override
     public SblServiceStatistic statistic() {
+        statLast.setServiceName(getName());
         statLast.setTpsIdle(tpsIdle.getAndSet(0));
         statLast.setTpsInput(tpsInput.getAndSet(0));
         statLast.setTpsOutput(tpsOutput.getAndSet(0));

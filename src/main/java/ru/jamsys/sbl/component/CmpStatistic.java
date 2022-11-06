@@ -9,6 +9,9 @@ import ru.jamsys.sbl.service.SblService;
 import ru.jamsys.sbl.SblServiceStatistic;
 
 import javax.annotation.PreDestroy;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -53,21 +56,26 @@ public class CmpStatistic extends CmpServiceScheduler {
         };
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected Consumer<Object> getResultHandler() {
-        return result -> Util.logConsole(Thread.currentThread(), result.toString());
+        return result -> {
+            Statistic statistic = new Statistic();
+            statistic.setCpu((int) cmpStatisticCpu.getCpuUsage());
+            Map<String, SblServiceStatistic> map = new HashMap<>();
+            for (SblServiceStatistic item : (List<SblServiceStatistic>) result) {
+                map.put(item.getServiceName(), item);
+            }
+            statistic.setService(map);
+            //Util.logConsole(Thread.currentThread(), Util.jsonObjectToString(statistic));
+
+            greetingClient.getMessage(Util.jsonObjectToString(statistic)).block();
+        };
     }
 
     @PreDestroy
     public void destroy() {
         super.shutdown();
-    }
-
-    @Override
-    public void tick() {
-        Statistic statistic = new Statistic();
-        statistic.setCpu((int) cmpStatisticCpu.getCpuUsage());
-        greetingClient.getMessage(Util.jsonObjectToString(statistic)).block();
     }
 
 }

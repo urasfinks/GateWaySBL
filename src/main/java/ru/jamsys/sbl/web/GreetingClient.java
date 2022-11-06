@@ -15,7 +15,7 @@ public class GreetingClient {
     // We can use it to create a dedicated `WebClient` for our component.
 
     public GreetingClient(WebClient.Builder builder) {
-        this.client = builder.baseUrl("http://localhost:9200").build();
+        this.client = builder.baseUrl("http://elasticsearch2:9200").build();
     }
 
     public Mono<String> getMessage(String data) {

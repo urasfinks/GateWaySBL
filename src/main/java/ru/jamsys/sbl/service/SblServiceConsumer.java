@@ -62,9 +62,9 @@ public class SblServiceConsumer extends SblServiceAbstract implements Consumer<M
                 long startTime = System.currentTimeMillis();
                 message.onHandle(MessageHandle.EXECUTE, service);
                 try {
+                    incTpsOutput(System.currentTimeMillis() - startTime);
                     consumer.accept(message);
                     message.onHandle(MessageHandle.COMPLETE, service);
-                    incTpsOutput(System.currentTimeMillis() - startTime);
                 } catch (Exception e) {
                     message.setError(e);
                 }

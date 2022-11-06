@@ -40,9 +40,9 @@ public class CmpService {
         return sblServiceConsumer;
     }
 
-    public SblService instance(String name, int countThreadMin, int countThreadMax, long keepAlive, long schedulerSleepMillis, Supplier<Message> supplier) {
+    public SblService instance(String name, int countThreadMin, int countThreadMax, long keepAlive, long schedulerSleepMillis, Supplier<Message> supplier, Consumer<Message> consumer) {
         SblServiceSupplier sblServiceSupplier = context.getBean(SblServiceSupplier.class);
-        sblServiceSupplier.configure(name, countThreadMin, countThreadMax, keepAlive, schedulerSleepMillis, supplier);
+        sblServiceSupplier.configure(name, countThreadMin, countThreadMax, keepAlive, schedulerSleepMillis, supplier, consumer);
         listService.put(name, sblServiceSupplier);
         return sblServiceSupplier;
     }

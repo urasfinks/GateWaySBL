@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import ru.jamsys.sbl.component.CmpService;
-import ru.jamsys.sbl.component.CmpServiceStabilizer;
-import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.service.SblServiceConsumer;
 import ru.jamsys.sbl.service.consumer.SblConsumerShutdownException;
 import ru.jamsys.sbl.service.consumer.SblConsumerTpsOverflowException;
@@ -29,10 +27,7 @@ class SblServiceConsumerTest {
     static void beforeAll() {
         String[] args = new String[]{};
         context = SpringApplication.run(SblApplication.class, args);
-        CmpStatistic cmpConsumerStatistic = context.getBean(CmpStatistic.class);
-        cmpConsumerStatistic.setDebug(true);
-        cmpConsumerStatistic.run();
-        context.getBean(CmpServiceStabilizer.class).run();
+        SblApplication.initContext(context ,true);
     }
 
     @Test

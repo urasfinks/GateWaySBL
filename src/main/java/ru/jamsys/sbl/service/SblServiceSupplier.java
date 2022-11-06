@@ -5,6 +5,7 @@ import lombok.Setter;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import ru.jamsys.sbl.SblServiceStatistic;
+import ru.jamsys.sbl.message.MessageHandle;
 import ru.jamsys.sbl.scheduler.SblSchedulerTick;
 import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.message.Message;
@@ -13,17 +14,20 @@ import ru.jamsys.sbl.service.thread.WrapThread;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 @Component
 @Scope("prototype")
-public class SblServiceSupplier extends SblServiceAbstract implements Supplier<Message>, SblSchedulerTick {
+public class SblServiceSupplier extends SblServiceAbstract implements Supplier<Message>, Consumer<Message>, SblSchedulerTick {
 
     private Supplier<Message> supplier;
+    private Consumer<Message> consumer;
 
-    public void configure(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, long schedulerSleepMillis, Supplier<Message> supplier) {
+    public void configure(String name, int threadCountMin, int threadCountMax, long threadKeepAliveMillis, long schedulerSleepMillis, Supplier<Message> supplier, Consumer<Message> consumer) {
         this.supplier = supplier;
+        this.consumer = consumer;
         super.configure(name, threadCountMin, threadCountMax, threadKeepAliveMillis, schedulerSleepMillis);
     }
 
@@ -84,6 +88,8 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
             Message message = get();
             if (message != null) {
                 incTpsOutput(System.currentTimeMillis() - startTime);
+                message.onHandle(MessageHandle.CREATE, this);
+                consumer.accept(message);
             } else {
                 break;
             }
@@ -133,4 +139,8 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
         return needThread;
     }
 
+    @Override
+    public void accept(Message message) {
+
+    }
 }
