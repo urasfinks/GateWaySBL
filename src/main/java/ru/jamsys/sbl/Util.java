@@ -2,6 +2,7 @@ package ru.jamsys.sbl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import reactor.util.annotation.Nullable;
 
 import java.time.LocalDateTime;
@@ -38,15 +39,26 @@ public class Util {
         return System.currentTimeMillis() / 1000;
     }
 
+    static ObjectMapper objectMapper = new ObjectMapper();
+
     @Nullable
     public static String jsonObjectToString(Object o) {
+        objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
             return objectMapper.writeValueAsString(o);
         }catch (Exception e){
             e.printStackTrace();
         }
         return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> WrapJsonToObject jsonToObject(String json, Class<T> t) {
+        try {
+            return new WrapJsonToObject(objectMapper.readValue(json, t), null);
+        }catch (Exception e){
+            return new WrapJsonToObject(null, e);
+        }
     }
 
     public static void sleepMillis(int seconds) {

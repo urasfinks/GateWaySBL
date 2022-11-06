@@ -16,10 +16,13 @@ public class GreetingRouter {
     @Bean
     public RouterFunction<ServerResponse> route(GreetingHandler greetingHandler) {
 
-        return RouterFunctions
-                .route(
-                        GET("/hello").and(accept(MediaType.TEXT_PLAIN)),
-                        greetingHandler::hello
-                );
+        return RouterFunctions.route()
+                .GET("/hello", accept(MediaType.TEXT_PLAIN), greetingHandler::hello)
+                .PUT("/Client", accept(MediaType.TEXT_PLAIN), greetingHandler::putClient)
+                .PUT("/Server", accept(MediaType.TEXT_PLAIN), greetingHandler::putServer)
+                .PUT("/VirtualServer", greetingHandler::putVirtualServer)
+                .PUT("/VirtualServerStatus", greetingHandler::putVirtualServerStatus)
+                .build();
+
     }
 }

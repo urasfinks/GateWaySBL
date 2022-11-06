@@ -1,5 +1,7 @@
 package ru.jamsys.sbl.web;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.web.reactive.function.BodyInserters;
 import reactor.core.publisher.Mono;
 
@@ -9,16 +11,27 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Component
 public class GreetingClient {
 
-    private final WebClient client;
+    private WebClient client = null;
 
-    // Spring Boot auto-configures a `WebClient.Builder` instance with nice defaults and customizations.
-    // We can use it to create a dedicated `WebClient` for our component.
-
-    public GreetingClient(WebClient.Builder builder) {
-        this.client = builder.baseUrl("http://elasticsearch2:9200").build();
+    private Environment env;
+    @Autowired
+    public void setEnv(Environment env) {
+        this.env = env;
     }
 
-    public Mono<String> getMessage(String data) {
+    WebClient.Builder builder;
+    @Autowired
+    public void setBuilder(WebClient.Builder builder) {
+        this.builder = builder;
+    }
+
+    public Mono<String> getMessage(String data) throws Exception {
+        if (client == null) {
+            if(env.getProperty("elk.url") == null){
+                throw new Exception("Properties elk.url is empty");
+            }
+            this.client = builder.baseUrl(env.getProperty("elk.url")).build();
+        }
         return this.client.post().uri("/statistic/_doc")
                 .body(BodyInserters.fromValue(data))
                 .headers(httpHeaders -> httpHeaders.set("Content-Type", "application/json"))
