@@ -17,4 +17,5 @@ public class Statistic {
     public int cpu;
 
     Map<String, SblServiceStatistic> service = null;
+    Map<String, Integer> share = null;
 }

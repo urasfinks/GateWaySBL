@@ -12,6 +12,7 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.WrapJsonToObject;
+import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.jpa.dto.ClientDto;
 import ru.jamsys.sbl.jpa.dto.ServerDto;
 import ru.jamsys.sbl.jpa.dto.VirtualServerDto;
@@ -30,6 +31,12 @@ public class GreetingHandler {
     ServerRepo serverRepo;
     VirtualServerRepo virtualServerRepo;
     VirtualServerStatusRepo virtualServerStatusRepo;
+    CmpStatistic cmpStatistic;
+
+    @Autowired
+    public void setCmpStatistic(CmpStatistic cmpStatistic) {
+        this.cmpStatistic = cmpStatistic;
+    }
 
     @Autowired
     public void setClientRepo(ClientRepo clientRepo) {
@@ -62,12 +69,13 @@ public class GreetingHandler {
     }
 
     private <T> Mono<ServerResponse> shareHandler(ServerRequest serverRequest, CrudRepository cr, Class<T> t) {
+        cmpStatistic.incShareStatistic("WebRequest");
         Mono<String> bodyData = serverRequest.bodyToMono(String.class);
 
         return bodyData.flatMap(body -> {
             JRet jret = new JRet();
             jret.status = HttpStatus.OK;
-            jret.data = "ok";
+            jret.data = "";
             if (body != null && !body.isEmpty()) {
                 try {
                     WrapJsonToObject c1 = Util.jsonToObject(body, t);
@@ -85,7 +93,10 @@ public class GreetingHandler {
                 jret.status = HttpStatus.EXPECTATION_FAILED;
                 jret.data = "Empty request";
             }
-            return ServerResponse.status(jret.status).body(BodyInserters.fromValue(Optional.of(Util.jsonObjectToString(jret)).orElse("{}")));
+            if (!jret.status.equals(HttpStatus.OK)) {
+                cmpStatistic.incShareStatistic("WebError");
+            }
+            return ServerResponse.status(jret.status).body(BodyInserters.fromValue(Optional.of(Util.jsonObjectToStringPretty(jret)).orElse("{}")));
         });
     }
 

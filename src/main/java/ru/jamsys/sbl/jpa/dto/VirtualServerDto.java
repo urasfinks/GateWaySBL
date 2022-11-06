@@ -42,4 +42,7 @@ public class VirtualServerDto {
     @Column(name="password_v_srv", nullable = false)
     private String password;
 
+    @Column(name="status_v_srv", insertable = false)
+    private Integer status;
+
 }

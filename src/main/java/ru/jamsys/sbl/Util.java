@@ -43,10 +43,22 @@ public class Util {
 
     @Nullable
     public static String jsonObjectToString(Object o) {
+
+        try {
+            return objectMapper.writeValueAsString(o);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    @Nullable
+    public static String jsonObjectToStringPretty(Object o) {
+        ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
         try {
             return objectMapper.writeValueAsString(o);
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
@@ -56,7 +68,7 @@ public class Util {
     public static <T> WrapJsonToObject jsonToObject(String json, Class<T> t) {
         try {
             return new WrapJsonToObject(objectMapper.readValue(json, t), null);
-        }catch (Exception e){
+        } catch (Exception e) {
             return new WrapJsonToObject(null, e);
         }
     }

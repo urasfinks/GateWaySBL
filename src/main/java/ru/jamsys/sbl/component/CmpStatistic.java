@@ -12,6 +12,8 @@ import javax.annotation.PreDestroy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -21,6 +23,16 @@ import ru.jamsys.sbl.web.GreetingClient;
 public class CmpStatistic extends CmpServiceScheduler {
 
     private CmpStatisticCpu cmpStatisticCpu;
+
+    private Map<String, AtomicInteger> shareStat = new ConcurrentHashMap<>();
+
+    public void incShareStatistic(String name) {
+        if (!shareStat.containsKey(name)) {
+            shareStat.put(name, new AtomicInteger(1));
+        } else {
+            shareStat.get(name).incrementAndGet();
+        }
+    }
 
     @Autowired
     public void setCmpStatisticCpu(CmpStatisticCpu cmpStatisticCpu) {
@@ -67,9 +79,26 @@ public class CmpStatistic extends CmpServiceScheduler {
                 map.put(item.getServiceName(), item);
             }
             statistic.setService(map);
+
+            Map<String, Integer> map2 = new HashMap<>();
+            String[] list = shareStat.keySet().toArray(new String[0]);
+            for (String item : list) {
+                int andSet = shareStat.get(item).getAndSet(0);
+//                if (andSet == 0) {
+//                    shareStat.remove(item);
+//                } else {
+//
+//                }
+                map2.put(item, andSet);
+            }
+            statistic.setShare(map2);
             //Util.logConsole(Thread.currentThread(), Util.jsonObjectToString(statistic));
 
-            greetingClient.getMessage(Util.jsonObjectToString(statistic)).block();
+            try {
+                greetingClient.getMessage(Util.jsonObjectToString(statistic)).block();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         };
     }
 
