@@ -1,0 +1,9 @@
+{
+  "properties": [
+    {
+      "name": "elk.url",
+      "type": "java.lang.String",
+      "description": "Description for elk.url."
+    }
+  ]
+}

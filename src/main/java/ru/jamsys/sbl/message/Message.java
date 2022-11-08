@@ -1,11 +1,9 @@
 package ru.jamsys.sbl.message;
 
-import ru.jamsys.sbl.jpa.dto.ServerDto;
 import ru.jamsys.sbl.service.SblService;
 
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.util.List;
 
 public interface Message {
 

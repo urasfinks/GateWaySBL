@@ -1,0 +1,88 @@
+{
+  "mappings": {
+    "properties": {
+      "cpu": {
+        "type": "long"
+      },
+      "service": {
+        "properties": {
+          "Scheduler": {
+            "properties": {
+              "queueSize": {
+                "type": "long"
+              },
+              "sumTimeTpsAvg": {
+                "type": "float"
+              },
+              "sumTimeTpsMax": {
+                "type": "long"
+              },
+              "sumTimeTpsMin": {
+                "type": "long"
+              },
+              "threadCount": {
+                "type": "long"
+              },
+              "threadCountPark": {
+                "type": "long"
+              },
+              "tpsIdle": {
+                "type": "long"
+              },
+              "tpsInput": {
+                "type": "long"
+              },
+              "tpsOutput": {
+                "type": "long"
+              }
+            }
+          },
+          "Test": {
+            "properties": {
+              "queueSize": {
+                "type": "long"
+              },
+              "sumTimeTpsAvg": {
+                "type": "float"
+              },
+              "sumTimeTpsMax": {
+                "type": "long"
+              },
+              "sumTimeTpsMin": {
+                "type": "long"
+              },
+              "threadCount": {
+                "type": "long"
+              },
+              "threadCountPark": {
+                "type": "long"
+              },
+              "tpsIdle": {
+                "type": "long"
+              },
+              "tpsInput": {
+                "type": "long"
+              },
+              "tpsOutput": {
+                "type": "long"
+              }
+            }
+          }
+        }
+      },
+      "share": {
+        "properties": {
+          "WebError": {
+            "type": "long"
+          },
+          "WebRequest": {
+            "type": "long"
+          }
+        }
+      },
+      "timestamp": {
+        "type": "date"
+      }
+    }
+  }
+}

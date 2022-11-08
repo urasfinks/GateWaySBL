@@ -1,6 +1,5 @@
 package ru.jamsys.sbl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import reactor.util.annotation.Nullable;
@@ -64,13 +63,14 @@ public class Util {
         return null;
     }
 
-    @SuppressWarnings("unchecked")
-    public static <T> WrapJsonToObject jsonToObject(String json, Class<T> t) {
+    public static <T> WrapJsonToObject<T> jsonToObject(String json, Class<T> t) {
+        WrapJsonToObject<T> ret = new WrapJsonToObject<>();
         try {
-            return new WrapJsonToObject(objectMapper.readValue(json, t), null);
+            ret.setObject(objectMapper.readValue(json, t));
         } catch (Exception e) {
-            return new WrapJsonToObject(null, e);
+            ret.setException(e);
         }
+        return ret;
     }
 
     public static void sleepMillis(int seconds) {
