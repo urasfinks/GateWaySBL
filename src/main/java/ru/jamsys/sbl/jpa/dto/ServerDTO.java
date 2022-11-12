@@ -26,4 +26,8 @@ public class ServerDTO {
     @Column(name = "status_srv", nullable = false, insertable = false)
     private Integer status;
 
+    @Column(name = "ping_date_srv", insertable = false)
+    private Timestamp datePing;
+
+
 }

@@ -1,5 +1,6 @@
 package ru.jamsys.sbl;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import reactor.util.annotation.Nullable;
@@ -63,12 +64,27 @@ public class Util {
         return null;
     }
 
+    static ObjectMapper objectMapper2 = new ObjectMapper();
+
+    public static <T> WrapJsonToObject<T> jsonToObjectOverflowProperties(String json, Class<T> t) {
+        WrapJsonToObject<T> ret = new WrapJsonToObject<>();
+        try {
+            objectMapper2.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+            ret.setObject(objectMapper2.readValue(json, t));
+        } catch (Exception e) {
+            ret.setException(e);
+            e.printStackTrace();
+        }
+        return ret;
+    }
+
     public static <T> WrapJsonToObject<T> jsonToObject(String json, Class<T> t) {
         WrapJsonToObject<T> ret = new WrapJsonToObject<>();
         try {
             ret.setObject(objectMapper.readValue(json, t));
         } catch (Exception e) {
             ret.setException(e);
+            e.printStackTrace();
         }
         return ret;
     }

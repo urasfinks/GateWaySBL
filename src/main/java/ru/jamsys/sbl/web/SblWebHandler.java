@@ -16,12 +16,9 @@ import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.WrapJsonToObject;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.jpa.dto.*;
-import ru.jamsys.sbl.jpa.repo.ClientRepo;
-import ru.jamsys.sbl.jpa.repo.ServerRepo;
-import ru.jamsys.sbl.jpa.repo.VirtualServerRepo;
-import ru.jamsys.sbl.jpa.repo.VirtualServerStatusRepo;
+import ru.jamsys.sbl.jpa.repo.*;
 
-import java.util.Optional;
+import java.util.function.BiConsumer;
 
 @Component
 public class SblWebHandler {
@@ -30,7 +27,13 @@ public class SblWebHandler {
     ServerRepo serverRepo;
     VirtualServerRepo virtualServerRepo;
     VirtualServerStatusRepo virtualServerStatusRepo;
+    TaskRepo taskRepo;
     CmpStatistic cmpStatistic;
+
+    @Autowired
+    public void setTaskRepo(TaskRepo taskRepo) {
+        this.taskRepo = taskRepo;
+    }
 
     @Autowired
     public void setCmpStatistic(CmpStatistic cmpStatistic) {
@@ -58,9 +61,9 @@ public class SblWebHandler {
     }
 
     @NonNull
-    public Mono<ServerResponse> hello(ServerRequest request) {
+    public Mono<ServerResponse> healthCheck(ServerRequest request) {
         return ServerResponse.ok().contentType(MediaType.TEXT_PLAIN)
-                .body(BodyInserters.fromValue("Hello world"));
+                .body(BodyInserters.fromValue(new JsonResponse().toString()));
     }
 
     @NonNull
@@ -84,31 +87,39 @@ public class SblWebHandler {
     }
 
     private <T> Mono<ServerResponse> shareHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType) {
+        return shareHandler(serverRequest, crudRepository, classType, null);
+    }
+
+    private <T> Mono<ServerResponse> shareHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType, BiConsumer<WrapJsonToObject<T>, String> handler) {
         cmpStatistic.incShareStatistic("WebRequest");
         Mono<String> bodyData = serverRequest.bodyToMono(String.class);
 
         return bodyData.flatMap(body -> {
-            JsonResponse jret = new JsonResponse(HttpStatus.OK, "");
+            JsonResponse jRet = new JsonResponse();
             if (body != null && !body.isEmpty()) {
                 try {
-                    WrapJsonToObject<T> wrapJsonToObject = Util.jsonToObject(body, classType);
+                    WrapJsonToObject<T> wrapJsonToObject = handler != null ?
+                            Util.jsonToObjectOverflowProperties(body, classType)
+                            : Util.jsonToObject(body, classType);
                     if (wrapJsonToObject.getException() == null) {
+                        if (handler != null) {
+                            handler.accept(wrapJsonToObject, body);
+                        }
                         crudRepository.save(wrapJsonToObject.getObject());
                     } else {
-                        jret.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
                     }
                 } catch (Exception e) {
-                    jret.set(HttpStatus.EXPECTATION_FAILED, e.toString());
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, e.toString());
+                    e.printStackTrace();
                 }
             } else {
-                jret.set(HttpStatus.EXPECTATION_FAILED, "Empty request");
+                jRet.set(HttpStatus.EXPECTATION_FAILED, "Empty request");
             }
-            if (!jret.status.equals(HttpStatus.OK)) {
+            if (!jRet.status.equals(HttpStatus.OK)) {
                 cmpStatistic.incShareStatistic("WebError");
             }
-            String s = Util.jsonObjectToStringPretty(jret);
-
-            return ServerResponse.status(jret.status).body(BodyInserters.fromValue(Optional.ofNullable(s).orElse("{}")));
+            return ServerResponse.status(jRet.status).body(BodyInserters.fromValue(jRet.toString()));
         });
     }
 
@@ -120,6 +131,11 @@ public class SblWebHandler {
     @NonNull
     public Mono<ServerResponse> putServer(ServerRequest serverRequest) {
         return shareHandler(serverRequest, serverRepo, ServerDTO.class);
+    }
+
+    @NonNull
+    public Mono<ServerResponse> putTask(ServerRequest serverRequest) {
+        return shareHandler(serverRequest, taskRepo, TaskDTO.class, (obj, body) -> obj.getObject().setTask(body));
     }
 
     @NonNull

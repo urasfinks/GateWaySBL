@@ -7,13 +7,8 @@ import ru.jamsys.sbl.component.CmpService;
 import ru.jamsys.sbl.component.CmpServiceStabilizer;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.component.CmpStatisticCpu;
-import ru.jamsys.sbl.jpa.dto.VirtualServerDTO;
-import ru.jamsys.sbl.jpa.repo.VirtualServerRepo;
-import ru.jamsys.sbl.message.MessageImpl;
+import ru.jamsys.sbl.jpa.service.TaskService;
 import ru.jamsys.sbl.service.SblService;
-
-import java.sql.Timestamp;
-import java.util.List;
 
 @SpringBootApplication
 public class SblApplication {
@@ -44,26 +39,9 @@ public class SblApplication {
     }
 
     public static void t1() {
-        VirtualServerRepo virtualServerRepo = context.getBean(VirtualServerRepo.class);
-        SblService test = context.getBean(CmpService.class).instance("Scheduler", 1, 10, 60, 5000, () -> {
-            Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-            List<VirtualServerDTO> removeList = virtualServerRepo.getRemove(timestamp);
-            if (removeList.size() > 0) {
-                MessageImpl message = new MessageImpl();
-                message.setHeader("removeList", removeList);
-                return message;
-            } else {
-                return null;
-            }
-        }, message -> {
-            List<VirtualServerDTO> removeList = message.getHeader("removeList");
-            for(VirtualServerDTO item: removeList){
-                item.setStatus(-1);
-                virtualServerRepo.save(item);
-            }
-            //Util.logConsole(Thread.currentThread(), removeList.toString());
-        });
-        test.setTpsInputMax(1);
+        TaskService taskService = context.getBean(TaskService.class);
+        SblService test = context.getBean(CmpService.class).instance("Scheduler", 1, 10, 60, 5000, taskService::execOneTask, null);
+        test.setTpsInputMax(10);
         test.setDebug(false);
     }
 

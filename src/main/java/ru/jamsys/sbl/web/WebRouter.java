@@ -16,11 +16,12 @@ public class WebRouter {
     public RouterFunction<ServerResponse> route(SblWebHandler sblWebHandler) {
 
         return RouterFunctions.route()
-                .GET("/hello", accept(MediaType.TEXT_PLAIN), sblWebHandler::hello)
+                .GET("/healthCheck", accept(MediaType.TEXT_PLAIN), sblWebHandler::healthCheck)
                 .PUT("/Client", accept(MediaType.TEXT_PLAIN), sblWebHandler::putClient)
                 .PUT("/Server", accept(MediaType.TEXT_PLAIN), sblWebHandler::putServer)
-                .PUT("/VirtualServer", sblWebHandler::putVirtualServer)
-                .PUT("/VirtualServerStatus", sblWebHandler::putVirtualServerStatus)
+                .PUT("/Task", accept(MediaType.TEXT_PLAIN), sblWebHandler::putTask)
+                //.PUT("/VirtualServer", sblWebHandler::putVirtualServer)
+                //.PUT("/VirtualServerStatus", sblWebHandler::putVirtualServerStatus)
                 .GET("/Client", sblWebHandler::getClient)
                 .GET("/Server", sblWebHandler::getServer)
                 .GET("/VirtualServer", sblWebHandler::getVirtualServer)

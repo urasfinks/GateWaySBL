@@ -89,7 +89,9 @@ public class SblServiceSupplier extends SblServiceAbstract implements Supplier<M
             if (message != null) {
                 incTpsOutput(System.currentTimeMillis() - startTime);
                 message.onHandle(MessageHandle.CREATE, this);
-                consumer.accept(message);
+                if (consumer != null) {
+                    consumer.accept(message);
+                }
             } else {
                 break;
             }

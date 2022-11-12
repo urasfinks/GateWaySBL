@@ -34,17 +34,11 @@ public class VirtualServerDTO {
     @Column(name = "date_add_v_srv", insertable = false)
     private Timestamp dateAdd;
 
-    @Column(name = "date_remove_v_srv", insertable = false)
-    private Timestamp dateRemove;
-
     @Column(name = "login_v_srv", nullable = false)
     private String login;
 
     @JsonIgnore
     @Column(name = "password_v_srv", nullable = false)
     private String password;
-
-    @Column(name = "status_v_srv", insertable = false)
-    private Integer status;
 
 }
