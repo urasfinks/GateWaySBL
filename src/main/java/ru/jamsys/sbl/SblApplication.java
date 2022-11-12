@@ -41,7 +41,7 @@ public class SblApplication {
     public static void t1() {
         TaskService taskService = context.getBean(TaskService.class);
         SblService test = context.getBean(CmpService.class).instance("Scheduler", 1, 10, 60, 5000, taskService::execOneTask, null);
-        test.setTpsInputMax(10);
+        test.setTpsInputMax(1);
         test.setDebug(false);
     }
 

@@ -40,4 +40,7 @@ public class TaskDTO {
     @Column(name = "result_task", insertable = false)
     private String result;
 
+    @Column(name = "retry_task", insertable = false)
+    private Integer retry;
+
 }

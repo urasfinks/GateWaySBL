@@ -1,6 +1,6 @@
 {
   "info": "На момент создания сервера мы ещё не знаем на каком физическе сервере что будет разворачиватся",
-  "action": "CreateServer",
-  "idVirtualServer": 803,
-  "localPort": 2020
+  "idClient": 453,
+  "iso": "win",
+  "dateExecute": "12.11.2022 11:02 +0300"
 }
