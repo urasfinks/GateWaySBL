@@ -3,6 +3,8 @@ package ru.jamsys.sbl.jpa.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.springframework.cache.annotation.Cacheable;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
@@ -25,7 +27,7 @@ public class TaskDTO {
     private int status;
 
     @Column(name = "date_add_task", insertable = false) //now()
-    private Timestamp dateAdd;
+    private Timestamp dateAdd = new Timestamp(System.currentTimeMillis());
 
     @JsonFormat(pattern="dd.MM.yyyy HH:mm Z")
     @Column(name = "date_execute_task", nullable = false)

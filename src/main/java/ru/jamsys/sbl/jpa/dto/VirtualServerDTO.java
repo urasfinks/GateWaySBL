@@ -32,12 +32,11 @@ public class VirtualServerDTO {
     private Integer portRouter;
 
     @Column(name = "date_add_v_srv", insertable = false)
-    private Timestamp dateAdd;
+    private Timestamp dateAdd = new Timestamp(System.currentTimeMillis());
 
     @Column(name = "login_v_srv", nullable = false)
     private String login;
 
-    @JsonIgnore
     @Column(name = "password_v_srv", nullable = false)
     private String password;
 
@@ -45,6 +44,8 @@ public class VirtualServerDTO {
     private Long idRouter;
 
     @Column(name = "status_v_srv", insertable = false)
-    private Integer status;
+    private Integer status = 0;
 
+    @Column(name = "response_v_srv")
+    private String response = "";
 }

@@ -1,7 +1,9 @@
 package ru.jamsys.sbl.jpa.service;
 
 import com.google.gson.Gson;
+import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.Util;
@@ -13,6 +15,7 @@ import ru.jamsys.sbl.jpa.repo.TaskRepo;
 import ru.jamsys.sbl.jpa.repo.VirtualServerRepo;
 import ru.jamsys.sbl.message.Message;
 import ru.jamsys.sbl.message.MessageImpl;
+import ru.jamsys.sbl.web.GreetingClient;
 
 import java.sql.Timestamp;
 import java.util.List;
@@ -21,9 +24,15 @@ import java.util.Map;
 @Service
 public class TaskService {
 
+    GreetingClient greetingClient;
     VirtualServerRepo virtualServerRepo;
     TaskRepo taskRepo;
     ServerRepo serverRepo;
+
+    @Autowired
+    public void setGreetingClient(GreetingClient greetingClient) {
+        this.greetingClient = greetingClient;
+    }
 
     @Autowired
     public void setServerRepo(ServerRepo serverRepo) {
@@ -41,14 +50,17 @@ public class TaskService {
     }
 
     @Transactional
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     public Message execOneTask() {
+
+        Message ret = null;
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         List<TaskDTO> listTask = taskRepo.getAlready(timestamp);
-        //Util.logConsole(Thread.currentThread(), "::execOneTask count: "+listTask.size());
+        Util.logConsole(Thread.currentThread(), "::execOneTask count: " + listTask.size());
         if (listTask.size() > 0) {
-            TaskDTO task = taskRepo.findOneForUpdate(listTask.get(0).getId());
-            if (task != null) {
-                //Util.logConsole(Thread.currentThread(), task.toString());
+            TaskDTO task = taskRepo.test(listTask.get(0).getId());
+            if (task != null && task.getStatus() == 0) {
+                Util.logConsole(Thread.currentThread(), "::execOneTask work: " + task);
                 try {
                     execTask(task);
                 } catch (Exception e) {
@@ -65,15 +77,18 @@ public class TaskService {
                     task.setResult(Util.stackTraceToString(e));
                 }
                 task.setDateUpdate(new Timestamp(System.currentTimeMillis()));
-                taskRepo.save(task);
-                return new MessageImpl();
+                TaskDTO savedTask = taskRepo.save(task);
+                Util.logConsole(Thread.currentThread(), "::execOneTask saved task: " + savedTask);
+                ret = new MessageImpl();
             }
         }
-        return null;
+        Util.logConsole(Thread.currentThread(), "::execOneTask finish");
+        return ret;
     }
 
     @SuppressWarnings("unchecked")
-    private void execTask(TaskDTO task) {
+    @Transactional
+    public void execTask(TaskDTO task) {
         Map<String, Object> parsed = new Gson().fromJson(task.getTask(), Map.class);
         if (parsed.get("action") != null) {
             String action = (String) parsed.get("action");
@@ -106,7 +121,8 @@ public class TaskService {
         return null;
     }
 
-    private void actionCreateVirtualServer(TaskDTO task, Map<String, Object> parsed) {
+    @Transactional
+    public void actionCreateVirtualServer(TaskDTO task, Map<String, Object> parsed) {
         long idRouter = 1L;
         if (parsed.containsKey("iso")) {
             //Получить доступный сервер, на который можно начать установку
@@ -130,6 +146,16 @@ public class TaskService {
                 virtualServerDTO.setIdRouter(idRouter);
 
                 virtualServerRepo.save(virtualServerDTO);
+
+                try {
+                    String r = greetingClient.getMessageCustom("http://77.50.186.230:3000", "", Util.jsonObjectToString(virtualServerDTO)).block();
+                    System.out.println(r);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    virtualServerDTO.setStatus(-1);
+                    virtualServerDTO.setResponse(Util.stackTraceToString(e));
+                    virtualServerRepo.save(virtualServerDTO);
+                }
 
                 task.setStatus(1);
 

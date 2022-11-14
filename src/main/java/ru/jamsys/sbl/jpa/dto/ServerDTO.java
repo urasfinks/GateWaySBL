@@ -18,13 +18,13 @@ public class ServerDTO {
     private String name;
 
     @Column(name = "date_add_srv", insertable = false)
-    private Timestamp dateAdd;
+    private Timestamp dateAdd = new Timestamp(System.currentTimeMillis());
 
     @Column(name = "ip_srv")
     private String ip;
 
     @Column(name = "status_srv", nullable = false, insertable = false)
-    private Integer status;
+    private Integer status = 0;
 
     @Column(name = "ping_date_srv", insertable = false)
     private Timestamp datePing;

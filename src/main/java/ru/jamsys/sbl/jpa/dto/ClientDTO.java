@@ -27,6 +27,6 @@ public class ClientDTO {
     private String password;
 
     @Column(name = "date_add_client", insertable = false)
-    private Timestamp dateAdd;
+    private Timestamp dateAdd = new Timestamp(System.currentTimeMillis());
 
 }
