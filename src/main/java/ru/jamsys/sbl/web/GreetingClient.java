@@ -49,20 +49,19 @@ public class GreetingClient {
                 .bodyToMono(String.class);
     }
 
-    public Mono<String> getMessageCustom(String host, String uri, String data) {
+    public Mono<String> getMessageCustom(String host, String uri, String data, long secTimeout) {
 //        TcpClient tcpClient = TcpClient.create()
 //                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000)
 //                .doOnConnected(connection ->
 //                        connection.addHandlerLast(new ReadTimeoutHandler(10))
 //                                .addHandlerLast(new WriteTimeoutHandler(10)));
 
-        HttpClient httpClient = HttpClient
-                .create()
-                .disableRetry(true)
-                .responseTimeout(Duration.ofMillis(1000));
-
+//        HttpClient httpClient = HttpClient
+//                .create()
+//                .disableRetry(true)
+//                .responseTimeout(Duration.ofMillis(1000));
         return builder
-                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                //.clientConnector(new ReactorClientHttpConnector(client))
                 .baseUrl(host)
                 .build()
                 .post()
@@ -70,7 +69,8 @@ public class GreetingClient {
                 .body(BodyInserters.fromValue(data))
                 .headers(httpHeaders -> httpHeaders.set("Content-Type", "application/json"))
                 .retrieve()
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .timeout(Duration.ofSeconds(secTimeout));
     }
 
 }

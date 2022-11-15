@@ -86,12 +86,12 @@ public class SblWebHandler {
         return ServerResponse.ok().body(Flux.fromIterable(virtualServerStatusRepo.findAll()), ClientDTO.class);
     }
 
-    private <T> Mono<ServerResponse> shareHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType) {
-        return shareHandler(serverRequest, crudRepository, classType, null);
+    private <T> Mono<ServerResponse> postHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType) {
+        return postHandler(serverRequest, crudRepository, classType, null);
     }
 
-    private <T> Mono<ServerResponse> shareHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType, BiConsumer<WrapJsonToObject<T>, String> handler) {
-        cmpStatistic.incShareStatistic("WebRequest");
+    private <T> Mono<ServerResponse> postHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType, BiConsumer<WrapJsonToObject<T>, String> handler) {
+        cmpStatistic.incShareStatistic("WebRequestPost");
         Mono<String> bodyData = serverRequest.bodyToMono(String.class);
 
         return bodyData.flatMap(body -> {
@@ -124,28 +124,64 @@ public class SblWebHandler {
     }
 
     @NonNull
-    public Mono<ServerResponse> putClient(ServerRequest serverRequest) {
-        return shareHandler(serverRequest, clientRepo, ClientDTO.class);
+    public Mono<ServerResponse> postClient(ServerRequest serverRequest) {
+        return postHandler(serverRequest, clientRepo, ClientDTO.class);
     }
 
     @NonNull
-    public Mono<ServerResponse> putServer(ServerRequest serverRequest) {
-        return shareHandler(serverRequest, serverRepo, ServerDTO.class);
+    public Mono<ServerResponse> postServer(ServerRequest serverRequest) {
+        return postHandler(serverRequest, serverRepo, ServerDTO.class);
     }
 
     @NonNull
-    public Mono<ServerResponse> putTask(ServerRequest serverRequest) {
-        return shareHandler(serverRequest, taskRepo, TaskDTO.class, (obj, body) -> obj.getObject().setTask(body));
+    public Mono<ServerResponse> postTask(ServerRequest serverRequest) {
+        return postHandler(serverRequest, taskRepo, TaskDTO.class, (obj, body) -> obj.getObject().setTask(body));
     }
 
     @NonNull
-    public Mono<ServerResponse> putVirtualServer(ServerRequest serverRequest) {
-        return shareHandler(serverRequest, virtualServerRepo, VirtualServerDTO.class);
+    public Mono<ServerResponse> postVirtualServer(ServerRequest serverRequest) {
+        return postHandler(serverRequest, virtualServerRepo, VirtualServerDTO.class);
     }
 
     @NonNull
-    public Mono<ServerResponse> putVirtualServerStatus(ServerRequest serverRequest) {
-        return shareHandler(serverRequest, virtualServerStatusRepo, VirtualServerStatusDTO.class);
+    public Mono<ServerResponse> postVirtualServerStatus(ServerRequest serverRequest) {
+        return postHandler(serverRequest, virtualServerStatusRepo, VirtualServerStatusDTO.class);
     }
+
+    @NonNull
+    public Mono<ServerResponse> patchServer(ServerRequest serverRequest) {
+        cmpStatistic.incShareStatistic("WebRequestPatch");
+        Mono<String> bodyData = serverRequest.bodyToMono(String.class);
+        return bodyData.flatMap(body -> {
+            JsonResponse jRet = new JsonResponse();
+            if (body != null && !body.isEmpty()) {
+                try {
+                    WrapJsonToObject<ServerDTO> wrapJsonToObject = Util.jsonToObject(body, ServerDTO.class);
+                    if (wrapJsonToObject.getException() == null) {
+                        ServerDTO byId = serverRepo.findById(wrapJsonToObject.getObject().getId()).orElse(null);
+                        if(byId != null){
+                            byId.patch(wrapJsonToObject.getObject());
+                            serverRepo.save(byId);
+                        }else{
+                            jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
+                        }
+                    } else {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
+                    }
+                } catch (Exception e) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, e.toString());
+                    e.printStackTrace();
+                }
+            } else {
+                jRet.set(HttpStatus.EXPECTATION_FAILED, "Empty request");
+            }
+            if (!jRet.status.equals(HttpStatus.OK)) {
+                cmpStatistic.incShareStatistic("WebError");
+            }
+            return ServerResponse.status(jRet.status).body(BodyInserters.fromValue(jRet.toString()));
+        });
+    }
+
+
 
 }

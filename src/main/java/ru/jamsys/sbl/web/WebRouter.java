@@ -15,17 +15,25 @@ public class WebRouter {
     @Bean
     public RouterFunction<ServerResponse> route(SblWebHandler sblWebHandler) {
 
+        /*
+        * POST - Исход вставки может быть разный (новый объект)
+        * PUT  - Идемпотентность вставки приводит к отному и тому же резултату (относим сюда UPDATE) !заменя целиком!
+        * PATCH - Частичная замена свойств, но также идемпотентная
+        * */
         return RouterFunctions.route()
-                .GET("/healthCheck", accept(MediaType.TEXT_PLAIN), sblWebHandler::healthCheck)
-                .PUT("/Client", accept(MediaType.TEXT_PLAIN), sblWebHandler::putClient)
-                .PUT("/Server", accept(MediaType.TEXT_PLAIN), sblWebHandler::putServer)
-                .PUT("/Task", accept(MediaType.TEXT_PLAIN), sblWebHandler::putTask)
-                //.PUT("/VirtualServer", sblWebHandler::putVirtualServer)
-                //.PUT("/VirtualServerStatus", sblWebHandler::putVirtualServerStatus)
                 .GET("/Client", sblWebHandler::getClient)
                 .GET("/Server", sblWebHandler::getServer)
                 .GET("/VirtualServer", sblWebHandler::getVirtualServer)
                 .GET("/VirtualServerStatus", sblWebHandler::getVirtualServerStatus)
+                .GET("/healthCheck", accept(MediaType.TEXT_PLAIN), sblWebHandler::healthCheck)
+
+                .POST("/Client", accept(MediaType.TEXT_PLAIN), sblWebHandler::postClient)
+                .POST("/Server", accept(MediaType.TEXT_PLAIN), sblWebHandler::postServer)
+                .POST("/Task", accept(MediaType.TEXT_PLAIN), sblWebHandler::postTask)
+                //.POST("/VirtualServer", sblWebHandler::postVirtualServer) //Only native API
+                .POST("/VirtualServerStatus", sblWebHandler::postVirtualServerStatus)
+
+                .PATCH("/Server", accept(MediaType.TEXT_PLAIN), sblWebHandler::patchServer)
                 .build();
 
     }

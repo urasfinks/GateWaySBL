@@ -1,7 +1,6 @@
 package ru.jamsys.sbl.jpa.service;
 
 import com.google.gson.Gson;
-import org.hibernate.SessionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Service;
@@ -113,10 +112,13 @@ public class TaskService {
         return ++maxPortRouter;
     }
 
-    private Long getFreeServer() {
+    private ServerDTO getFreeServer() {
         List<ServerDTO> alreadyServer = serverRepo.getAlready();
         if (alreadyServer.size() > 0) {
-            return alreadyServer.get(0).getId();
+            ServerDTO srv = alreadyServer.get(0);
+            srv.setStatus(1);
+            serverRepo.save(srv);
+            return srv;
         }
         return null;
     }
@@ -126,17 +128,17 @@ public class TaskService {
         long idRouter = 1L;
         if (parsed.containsKey("iso")) {
             //Получить доступный сервер, на который можно начать установку
-            Long freeServer = getFreeServer();
+            ServerDTO freeServer = getFreeServer();
             if (freeServer != null) {
                 int portRouter = getNextPortRouter(idRouter);
-                int portServer = getNextPortServer(freeServer);
+                int portServer = getNextPortServer(freeServer.getId());
                 String user = Util.genUser();
                 String password = Util.genPassword();
 
                 Util.logConsole(Thread.currentThread(), "PortRouter: " + portRouter + "; PortServer: " + portServer);
 
                 VirtualServerDTO virtualServerDTO = new VirtualServerDTO();
-                virtualServerDTO.setIdSrv(freeServer);
+                virtualServerDTO.setIdSrv(freeServer.getId());
                 virtualServerDTO.setIdClient(task.getIdClient());
                 virtualServerDTO.setIso((String) parsed.get("iso"));
                 virtualServerDTO.setPortLocal(portServer);
@@ -148,19 +150,37 @@ public class TaskService {
                 virtualServerRepo.save(virtualServerDTO);
 
                 try {
-                    String r = greetingClient.getMessageCustom("http://77.50.186.230:3000", "", Util.jsonObjectToString(virtualServerDTO)).block();
-                    System.out.println(r);
+                    String r = greetingClient.getMessageCustom(
+                            "http://77.50.186.230:3000",
+                            "",
+                            Util.jsonObjectToString(virtualServerDTO),
+                            5
+                    ).block();
+
+                    //System.out.println(r);
+                    Util.logConsole(Thread.currentThread(), "VirtualBoxController response: " + r);
+
+                    virtualServerDTO.setStatus(-1);
+                    virtualServerDTO.setResponse(r);
+                    virtualServerRepo.save(virtualServerDTO);
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     virtualServerDTO.setStatus(-1);
                     virtualServerDTO.setResponse(Util.stackTraceToString(e));
                     virtualServerRepo.save(virtualServerDTO);
+
+                    //Возвращаем сервер как доступный
+                    freeServer.setStatus(0);
+                    serverRepo.save(freeServer);
                 }
 
                 task.setStatus(1);
 
             } else {
                 task.setResult("No free server");
+                //Нет сервера, просто вперёд передвигаем исполнение
+                task.setDateExecute(new Timestamp(System.currentTimeMillis()+60000));
             }
         } else {
             task.setResult("Field iso undefined");

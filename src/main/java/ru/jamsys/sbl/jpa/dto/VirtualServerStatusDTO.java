@@ -24,4 +24,7 @@ public class VirtualServerStatusDTO {
     @Column(name = "date_add_v_srv_status", insertable = false)
     private Timestamp dateAdd = new Timestamp(System.currentTimeMillis());
 
+    @Column(name = "level_v_srv_status")
+    private String level;
+
 }
