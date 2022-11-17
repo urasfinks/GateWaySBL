@@ -193,6 +193,14 @@ public class TaskService {
                         );
 
                         status("INFO", virtualServerDTO.getId(), "AddPortForwarding response: " + resp);
+                        Map<String, Object> rp = new Gson().fromJson(resp, Map.class);
+                        //{ "id":1, "others":{ "max_rules":64 }, "error_code":"34800" }
+                        String errorCode = (String) rp.get("error_code");
+                        System.out.println("Error_code: "+errorCode);
+                        if (!errorCode.equals("0")) {
+                            System.out.println("NOT EQUALS");
+                            next = false;
+                        }
                     } catch (Exception e) {
                         status("ERROR", virtualServerDTO.getId(), "AddPortForwarding response: " + Util.stackTraceToString(e));
                         next = false;
@@ -208,12 +216,6 @@ public class TaskService {
                         ).block();
 
                         Util.logConsole(Thread.currentThread(), "VirtualBoxController response: " + r);
-                        Map<String, Object> rp = new Gson().fromJson(r, Map.class);
-                        //{ "id":1, "others":{ "max_rules":64 }, "error_code":"34800" }
-                        String errorCode = (String) rp.get("error_code");
-                        if (!errorCode.equals("0")) {
-                            next = false;
-                        }
                     } catch (Exception e) {
                         status("ERROR", virtualServerDTO.getId(), "VirtualBoxController response: " + Util.stackTraceToString(e));
                         next = false;
