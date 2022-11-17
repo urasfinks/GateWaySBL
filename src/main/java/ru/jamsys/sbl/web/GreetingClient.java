@@ -1,18 +1,12 @@
 package ru.jamsys.sbl.web;
 
-import io.netty.channel.ChannelOption;
-import io.netty.handler.timeout.ReadTimeoutHandler;
-import io.netty.handler.timeout.WriteTimeoutHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.BodyInserters;
 import reactor.core.publisher.Mono;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.netty.http.client.HttpClient;
-import reactor.netty.tcp.TcpClient;
 
 import java.time.Duration;
 
@@ -49,17 +43,7 @@ public class GreetingClient {
                 .bodyToMono(String.class);
     }
 
-    public Mono<String> getMessageCustom(String host, String uri, String data, long secTimeout) {
-//        TcpClient tcpClient = TcpClient.create()
-//                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 1000)
-//                .doOnConnected(connection ->
-//                        connection.addHandlerLast(new ReadTimeoutHandler(10))
-//                                .addHandlerLast(new WriteTimeoutHandler(10)));
-
-//        HttpClient httpClient = HttpClient
-//                .create()
-//                .disableRetry(true)
-//                .responseTimeout(Duration.ofMillis(1000));
+    public Mono<String> nettyRequest(String host, String uri, String data, long secTimeout) {
         return builder
                 //.clientConnector(new ReactorClientHttpConnector(client))
                 .baseUrl(host)

@@ -6,12 +6,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.Util;
-import ru.jamsys.sbl.jpa.dto.ServerDTO;
-import ru.jamsys.sbl.jpa.dto.TaskDTO;
-import ru.jamsys.sbl.jpa.dto.VirtualServerDTO;
-import ru.jamsys.sbl.jpa.repo.ServerRepo;
-import ru.jamsys.sbl.jpa.repo.TaskRepo;
-import ru.jamsys.sbl.jpa.repo.VirtualServerRepo;
+import ru.jamsys.sbl.UtilRouter;
+import ru.jamsys.sbl.jpa.dto.*;
+import ru.jamsys.sbl.jpa.repo.*;
 import ru.jamsys.sbl.message.Message;
 import ru.jamsys.sbl.message.MessageImpl;
 import ru.jamsys.sbl.web.GreetingClient;
@@ -27,6 +24,18 @@ public class TaskService {
     VirtualServerRepo virtualServerRepo;
     TaskRepo taskRepo;
     ServerRepo serverRepo;
+    RouterRepo routerRepo;
+    VirtualServerStatusRepo virtualServerStatusRepo;
+
+    @Autowired
+    public void setVirtualServerStatusRepo(VirtualServerStatusRepo virtualServerStatusRepo) {
+        this.virtualServerStatusRepo = virtualServerStatusRepo;
+    }
+
+    @Autowired
+    public void setRouterRepo(RouterRepo routerRepo) {
+        this.routerRepo = routerRepo;
+    }
 
     @Autowired
     public void setGreetingClient(GreetingClient greetingClient) {
@@ -55,7 +64,7 @@ public class TaskService {
         Message ret = null;
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         List<TaskDTO> listTask = taskRepo.getAlready(timestamp);
-        Util.logConsole(Thread.currentThread(), "::execOneTask count: " + listTask.size());
+        //Util.logConsole(Thread.currentThread(), "::execOneTask count: " + listTask.size());
         if (listTask.size() > 0) {
             TaskDTO task = taskRepo.test(listTask.get(0).getId());
             if (task != null && task.getStatus() == 0) {
@@ -102,13 +111,13 @@ public class TaskService {
 
     private int getNextPortRouter(long idRouter) {
         List<VirtualServerDTO> portRouter = virtualServerRepo.getPortRouter(idRouter);
-        int maxPortRouter = portRouter.size() > 0 ? portRouter.get(0).getPortRouter() : 2020;
+        int maxPortRouter = portRouter.size() > 0 ? portRouter.get(0).getPortRouter() : 22001;
         return ++maxPortRouter;
     }
 
     private int getNextPortServer(long idSrv) {
         List<VirtualServerDTO> portRouter = virtualServerRepo.getPortServer(idSrv);
-        int maxPortRouter = portRouter.size() > 0 ? portRouter.get(0).getPortLocal() : 2020;
+        int maxPortRouter = portRouter.size() > 0 ? portRouter.get(0).getPortLocal() : 22001;
         return ++maxPortRouter;
     }
 
@@ -123,13 +132,27 @@ public class TaskService {
         return null;
     }
 
+    private void status(String level, Long idVSrv, String data) {
+        if (idVSrv != null) {
+            VirtualServerStatusDTO status = new VirtualServerStatusDTO();
+            status.setLevel("INFO");
+            status.setData(data);
+            status.setIdVSrv(idVSrv);
+            System.out.println(status);
+            virtualServerStatusRepo.save(status);
+        } else {
+            Util.logConsole(Thread.currentThread(), "[" + level + "] " + data);
+        }
+    }
+
     @Transactional
     public void actionCreateVirtualServer(TaskDTO task, Map<String, Object> parsed) {
         long idRouter = 1L;
         if (parsed.containsKey("iso")) {
             //Получить доступный сервер, на который можно начать установку
             ServerDTO freeServer = getFreeServer();
-            if (freeServer != null) {
+            RouterDTO routerDTO = routerRepo.findById(idRouter).orElse(null);
+            if (freeServer != null && routerDTO != null) {
                 int portRouter = getNextPortRouter(idRouter);
                 int portServer = getNextPortServer(freeServer.getId());
                 String user = Util.genUser();
@@ -137,39 +160,71 @@ public class TaskService {
 
                 Util.logConsole(Thread.currentThread(), "PortRouter: " + portRouter + "; PortServer: " + portServer);
 
-                VirtualServerDTO virtualServerDTO = new VirtualServerDTO();
-                virtualServerDTO.setIdSrv(freeServer.getId());
-                virtualServerDTO.setIdClient(task.getIdClient());
-                virtualServerDTO.setIso((String) parsed.get("iso"));
-                virtualServerDTO.setPortLocal(portServer);
-                virtualServerDTO.setPortRouter(portRouter);
-                virtualServerDTO.setLogin(user);
-                virtualServerDTO.setPassword(password);
-                virtualServerDTO.setIdRouter(idRouter);
+                boolean next = true;
 
-                virtualServerRepo.save(virtualServerDTO);
+                VirtualServerDTO virtualServerDTO = null;
+                if (next) {
+                    try {
+                        virtualServerDTO = new VirtualServerDTO();
+                        virtualServerDTO.setIdSrv(freeServer.getId());
+                        virtualServerDTO.setIdClient(task.getIdClient());
+                        virtualServerDTO.setIso((String) parsed.get("iso"));
+                        virtualServerDTO.setPortLocal(portServer);
+                        virtualServerDTO.setPortRouter(portRouter);
+                        virtualServerDTO.setLogin(user);
+                        virtualServerDTO.setPassword(password);
+                        virtualServerDTO.setIdRouter(idRouter);
 
-                try {
-                    String r = greetingClient.getMessageCustom(
-                            "http://77.50.186.230:3000",
-                            "",
-                            Util.jsonObjectToString(virtualServerDTO),
-                            5
-                    ).block();
+                        virtualServerRepo.save(virtualServerDTO);
+                    } catch (Exception e) {
+                        status("ERROR", null, "AddPortForwarding response: " + Util.stackTraceToString(e));
+                        next = false;
+                    }
+                }
+                if (next) {
+                    try {
+                        //Add port forwarding
+                        String resp = UtilRouter.addPortForwarding(
+                                routerDTO.getIp(),
+                                "RDP_" + virtualServerDTO.getIso() + virtualServerDTO.getId(),
+                                portRouter + "",
+                                freeServer.getIp(),
+                                portServer + ""
+                        );
 
-                    //System.out.println(r);
-                    Util.logConsole(Thread.currentThread(), "VirtualBoxController response: " + r);
+                        status("INFO", virtualServerDTO.getId(), "AddPortForwarding response: " + resp);
+                    } catch (Exception e) {
+                        status("ERROR", virtualServerDTO.getId(), "AddPortForwarding response: " + Util.stackTraceToString(e));
+                        next = false;
+                    }
+                }
+                if (next) {
+                    try {
+                        String r = greetingClient.nettyRequest(
+                                "http://localhost:3000",
+                                "",
+                                Util.jsonObjectToString(virtualServerDTO),
+                                5
+                        ).block();
 
-                    virtualServerDTO.setStatus(-1);
-                    virtualServerDTO.setResponse(r);
-                    virtualServerRepo.save(virtualServerDTO);
+                        Util.logConsole(Thread.currentThread(), "VirtualBoxController response: " + r);
+                        Map<String, Object> rp = new Gson().fromJson(r, Map.class);
+                        //{ "id":1, "others":{ "max_rules":64 }, "error_code":"34800" }
+                        String errorCode = (String) rp.get("error_code");
+                        if (!errorCode.equals("0")) {
+                            next = false;
+                        }
+                    } catch (Exception e) {
+                        status("ERROR", virtualServerDTO.getId(), "VirtualBoxController response: " + Util.stackTraceToString(e));
+                        next = false;
+                    }
+                }
 
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    virtualServerDTO.setStatus(-1);
-                    virtualServerDTO.setResponse(Util.stackTraceToString(e));
-                    virtualServerRepo.save(virtualServerDTO);
-
+                if (!next) {
+                    if (virtualServerDTO != null) {
+                        virtualServerDTO.setStatus(-1);
+                        virtualServerRepo.save(virtualServerDTO);
+                    }
                     //Возвращаем сервер как доступный
                     freeServer.setStatus(0);
                     serverRepo.save(freeServer);
@@ -178,11 +233,13 @@ public class TaskService {
                 task.setStatus(1);
 
             } else {
-                task.setResult("No free server");
+                Util.logConsole(Thread.currentThread(), "No free server or router");
+                task.setResult("No free server or router");
                 //Нет сервера, просто вперёд передвигаем исполнение
-                task.setDateExecute(new Timestamp(System.currentTimeMillis()+60000));
+                task.setDateExecute(new Timestamp(System.currentTimeMillis() + 60000));
             }
         } else {
+            Util.logConsole(Thread.currentThread(), "Field iso undefined");
             task.setResult("Field iso undefined");
         }
     }
