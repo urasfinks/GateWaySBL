@@ -24,7 +24,7 @@ public class CmpStatistic extends CmpServiceScheduler {
 
     private CmpStatisticCpu cmpStatisticCpu;
 
-    private Map<String, AtomicInteger> shareStat = new ConcurrentHashMap<>();
+    private final Map<String, AtomicInteger> shareStat = new ConcurrentHashMap<>();
 
     public void incShareStatistic(String name) {
         if (!shareStat.containsKey(name)) {
@@ -73,7 +73,7 @@ public class CmpStatistic extends CmpServiceScheduler {
     protected Consumer<Object> getResultHandler() {
         return result -> {
             Statistic statistic = new Statistic();
-            statistic.setCpu((int) cmpStatisticCpu.getCpuUsage());
+            statistic.setCpu(cmpStatisticCpu.getCpuUsage());
             Map<String, SblServiceStatistic> map = new HashMap<>();
             for (SblServiceStatistic item : (List<SblServiceStatistic>) result) {
                 map.put(item.getServiceName(), item);

@@ -1,10 +1,9 @@
 package ru.jamsys.sbl.jpa.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
-import org.hibernate.annotations.CacheConcurrencyStrategy;
-import org.springframework.cache.annotation.Cacheable;
 
 import javax.persistence.*;
 import java.sql.Timestamp;
@@ -20,6 +19,7 @@ public class TaskDTO {
     @Column(name = "id_task", nullable = false)
     private Long id;
 
+    @JsonIgnore
     @Column(name = "data_task", nullable = false)
     private String task;
 
@@ -44,5 +44,11 @@ public class TaskDTO {
 
     @Column(name = "retry_task", insertable = false)
     private Integer retry;
+
+    @Column(name = "link_id_srv", insertable = false)
+    private Long linkIdSrv;
+
+    @Column(name = "link_id_v_srv", insertable = false)
+    private Long linkIdVSrv;
 
 }

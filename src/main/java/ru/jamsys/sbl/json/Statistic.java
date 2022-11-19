@@ -14,7 +14,7 @@ public class Statistic {
 
     @JsonProperty("timestamp")
     public long timestamp = System.currentTimeMillis();
-    public int cpu;
+    public double cpu;
 
     Map<String, SblServiceStatistic> service = null;
     Map<String, Integer> share = null;

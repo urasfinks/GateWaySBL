@@ -1,5 +1,6 @@
 package ru.jamsys.sbl.web;
 
+import com.google.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.jpa.dto.*;
 import ru.jamsys.sbl.jpa.repo.*;
 
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 @Component
@@ -27,8 +29,14 @@ public class SblWebHandler {
     ServerRepo serverRepo;
     VirtualServerRepo virtualServerRepo;
     VirtualServerStatusRepo virtualServerStatusRepo;
+    TaskStatusRepo taskStatusRepo;
     TaskRepo taskRepo;
     CmpStatistic cmpStatistic;
+
+    @Autowired
+    public void setTaskStatusRepo(TaskStatusRepo taskStatusRepo) {
+        this.taskStatusRepo = taskStatusRepo;
+    }
 
     @Autowired
     public void setTaskRepo(TaskRepo taskRepo) {
@@ -73,16 +81,21 @@ public class SblWebHandler {
 
     @NonNull
     public Mono<ServerResponse> getServer(ServerRequest serverRequest) {
-        return ServerResponse.ok().body(Flux.fromIterable(serverRepo.findAll()), ClientDTO.class);
+        return ServerResponse.ok().body(Flux.fromIterable(serverRepo.findAll()), ServerDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> getVirtualServer(ServerRequest serverRequest) {
-        return ServerResponse.ok().body(Flux.fromIterable(virtualServerRepo.findAll()), ClientDTO.class);
+        return ServerResponse.ok().body(Flux.fromIterable(virtualServerRepo.findAll()), VirtualServerDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> getVirtualServerStatus(ServerRequest serverRequest) {
+        return ServerResponse.ok().body(Flux.fromIterable(taskStatusRepo.findAll()), TaskStatusDTO.class);
+    }
+
+    @NonNull
+    public Mono<ServerResponse> getTaskStatus(ServerRequest serverRequest) {
         return ServerResponse.ok().body(Flux.fromIterable(virtualServerStatusRepo.findAll()), ClientDTO.class);
     }
 
@@ -105,7 +118,11 @@ public class SblWebHandler {
                         if (handler != null) {
                             handler.accept(wrapJsonToObject, body);
                         }
-                        crudRepository.save(wrapJsonToObject.getObject());
+                        T o = wrapJsonToObject.getObject();
+                        crudRepository.save(o);
+                        //jRet.addData(o.getClass().getName().replace("DTO", ""), o);
+                        String[] split = o.getClass().getName().split("\\.");
+                        jRet.addData(split[split.length-1].replace("DTO", ""), o);
                     } else {
                         jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
                     }
@@ -149,25 +166,18 @@ public class SblWebHandler {
     }
 
     @NonNull
-    public Mono<ServerResponse> patchServer(ServerRequest serverRequest) {
+    public Mono<ServerResponse> postTaskStatus(ServerRequest serverRequest) {
+        return postHandler(serverRequest, taskStatusRepo, TaskStatusDTO.class);
+    }
+
+    public Mono<ServerResponse> patchHandler(ServerRequest serverRequest, BiConsumer<String, JsonResponse> consumer) {
         cmpStatistic.incShareStatistic("WebRequestPatch");
         Mono<String> bodyData = serverRequest.bodyToMono(String.class);
         return bodyData.flatMap(body -> {
             JsonResponse jRet = new JsonResponse();
             if (body != null && !body.isEmpty()) {
                 try {
-                    WrapJsonToObject<ServerDTO> wrapJsonToObject = Util.jsonToObject(body, ServerDTO.class);
-                    if (wrapJsonToObject.getException() == null) {
-                        ServerDTO byId = serverRepo.findById(wrapJsonToObject.getObject().getId()).orElse(null);
-                        if(byId != null){
-                            byId.patch(wrapJsonToObject.getObject());
-                            serverRepo.save(byId);
-                        }else{
-                            jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
-                        }
-                    } else {
-                        jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
-                    }
+                    consumer.accept(body, jRet);
                 } catch (Exception e) {
                     jRet.set(HttpStatus.EXPECTATION_FAILED, e.toString());
                     e.printStackTrace();
@@ -182,6 +192,51 @@ public class SblWebHandler {
         });
     }
 
+    @NonNull
+    public Mono<ServerResponse> patchTaskComplete(ServerRequest serverRequest) {
+        return patchHandler(serverRequest, (body, jRet) -> {
+            System.out.println(body);
+            Map<String, Object> req = new Gson().fromJson(body, Map.class);
+            if (req.containsKey("idTask") && req.containsKey("status")) {
+                Double x = (Double) req.get("idTask");
+                TaskDTO task = taskRepo.findById(x.longValue()).orElse(null);
+                if (task != null) {
+                    if (task.getLinkIdSrv() != null) {
+                        ServerDTO serverDTO = serverRepo.findById(task.getLinkIdSrv()).orElse(null);
+                        if (serverDTO != null) {
+                            Double x2 = (Double) req.get("status");
+                            serverDTO.setStatus(x2.intValue());
+                            serverRepo.save(serverDTO);
+                        } else {
+                            jRet.set(HttpStatus.EXPECTATION_FAILED, "Server by Task not found");
+                        }
+                    } else {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Task server is null");
+                    }
+                } else {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Not found task: " + body);
+                }
+            } else {
+                jRet.set(HttpStatus.EXPECTATION_FAILED, "Not found idTask or status field");
+            }
+        });
+    }
 
+    public Mono<ServerResponse> patchServer(ServerRequest serverRequest) {
+        return patchHandler(serverRequest, (body, jRet) -> {
+            WrapJsonToObject<ServerDTO> wrapJsonToObject = Util.jsonToObject(body, ServerDTO.class);
+            if (wrapJsonToObject.getException() == null) {
+                ServerDTO byId = serverRepo.findById(wrapJsonToObject.getObject().getId()).orElse(null);
+                if (byId != null) {
+                    byId.patch(wrapJsonToObject.getObject());
+                    serverRepo.save(byId);
+                } else {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Not found server by id");
+                }
+            } else {
+                jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
+            }
+        });
+    }
 
 }

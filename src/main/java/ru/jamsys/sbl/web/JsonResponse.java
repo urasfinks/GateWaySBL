@@ -4,23 +4,27 @@ import org.springframework.http.HttpStatus;
 import ru.jamsys.sbl.Util;
 
 import javax.validation.constraints.NotNull;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 public class JsonResponse {
 
     public HttpStatus status;
-    public String data;
+    public String description;
+    public Map<String, Object> data = new HashMap<>();
 
     public JsonResponse() {
         set(HttpStatus.OK, "");
     }
-    public JsonResponse(HttpStatus status, String data) {
-        set(status, data);
+
+    public void set(HttpStatus status, String description) {
+        this.status = status;
+        this.description = description;
     }
 
-    public void set(HttpStatus status, String data) {
-        this.status = status;
-        this.data = data;
+    public void addData(String key, Object value){
+        data.put(key, value);
     }
 
     @NotNull

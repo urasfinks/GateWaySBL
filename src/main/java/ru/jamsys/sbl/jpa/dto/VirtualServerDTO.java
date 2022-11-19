@@ -1,6 +1,5 @@
 package ru.jamsys.sbl.jpa.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import javax.persistence.*;
@@ -48,4 +47,7 @@ public class VirtualServerDTO {
 
     @Column(name = "response_v_srv")
     private String response = "";
+
+    @Column(name = "id_task")
+    private Long idTask;
 }

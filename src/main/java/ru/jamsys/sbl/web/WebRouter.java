@@ -25,6 +25,7 @@ public class WebRouter {
                 .GET("/Server", sblWebHandler::getServer)
                 .GET("/VirtualServer", sblWebHandler::getVirtualServer)
                 .GET("/VirtualServerStatus", sblWebHandler::getVirtualServerStatus)
+                .GET("/TaskStatus", sblWebHandler::getTaskStatus)
                 .GET("/healthCheck", accept(MediaType.TEXT_PLAIN), sblWebHandler::healthCheck)
 
                 .POST("/Client", accept(MediaType.TEXT_PLAIN), sblWebHandler::postClient)
@@ -32,8 +33,10 @@ public class WebRouter {
                 .POST("/Task", accept(MediaType.TEXT_PLAIN), sblWebHandler::postTask)
                 //.POST("/VirtualServer", sblWebHandler::postVirtualServer) //Only native API
                 .POST("/VirtualServerStatus", sblWebHandler::postVirtualServerStatus)
+                .POST("/TaskStatus", sblWebHandler::postTaskStatus)
 
                 .PATCH("/Server", accept(MediaType.TEXT_PLAIN), sblWebHandler::patchServer)
+                .PATCH("/TaskComplete", accept(MediaType.TEXT_PLAIN), sblWebHandler::patchTaskComplete)
                 .build();
 
     }

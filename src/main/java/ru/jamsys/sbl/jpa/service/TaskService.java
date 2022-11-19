@@ -25,11 +25,11 @@ public class TaskService {
     TaskRepo taskRepo;
     ServerRepo serverRepo;
     RouterRepo routerRepo;
-    VirtualServerStatusRepo virtualServerStatusRepo;
+    TaskStatusRepo taskStatusRepo;
 
     @Autowired
-    public void setVirtualServerStatusRepo(VirtualServerStatusRepo virtualServerStatusRepo) {
-        this.virtualServerStatusRepo = virtualServerStatusRepo;
+    public void setTaskStatusRepo(TaskStatusRepo taskStatusRepo) {
+        this.taskStatusRepo = taskStatusRepo;
     }
 
     @Autowired
@@ -70,6 +70,7 @@ public class TaskService {
             if (task != null && task.getStatus() == 0) {
                 Util.logConsole(Thread.currentThread(), "::execOneTask work: " + task);
                 try {
+                    task.setResult(""); //Если взяли в работу, то от предыдущего раза очистим результат
                     execTask(task);
                 } catch (Exception e) {
                     Integer retry = task.getRetry();
@@ -86,11 +87,11 @@ public class TaskService {
                 }
                 task.setDateUpdate(new Timestamp(System.currentTimeMillis()));
                 TaskDTO savedTask = taskRepo.save(task);
-                Util.logConsole(Thread.currentThread(), "::execOneTask saved task: " + savedTask);
+                //Util.logConsole(Thread.currentThread(), "::execOneTask saved task: " + savedTask);
                 ret = new MessageImpl();
             }
         }
-        Util.logConsole(Thread.currentThread(), "::execOneTask finish");
+        //Util.logConsole(Thread.currentThread(), "::execOneTask finish");
         return ret;
     }
 
@@ -132,14 +133,14 @@ public class TaskService {
         return null;
     }
 
-    private void status(String level, Long idVSrv, String data) {
-        if (idVSrv != null) {
-            VirtualServerStatusDTO status = new VirtualServerStatusDTO();
+    private void status(String level, Long idTask, String data) {
+        if (idTask != null) {
+            TaskStatusDTO status = new TaskStatusDTO();
             status.setLevel("INFO");
             status.setData(data);
-            status.setIdVSrv(idVSrv);
+            status.setIdTask(idTask);
             System.out.println(status);
-            virtualServerStatusRepo.save(status);
+            taskStatusRepo.save(status);
         } else {
             Util.logConsole(Thread.currentThread(), "[" + level + "] " + data);
         }
@@ -153,14 +154,26 @@ public class TaskService {
             ServerDTO freeServer = getFreeServer();
             RouterDTO routerDTO = routerRepo.findById(idRouter).orElse(null);
             if (freeServer != null && routerDTO != null) {
+
+                task.setLinkIdSrv(freeServer.getId());
+
                 int portRouter = getNextPortRouter(idRouter);
                 int portServer = getNextPortServer(freeServer.getId());
+
+
                 String user = Util.genUser();
                 String password = Util.genPassword();
 
                 Util.logConsole(Thread.currentThread(), "PortRouter: " + portRouter + "; PortServer: " + portServer);
 
                 boolean next = true;
+
+                if (next) {
+                    if (portRouter > 22100) {
+                        status("ERROR", task.getId(), "Max port forwarding on router " + idRouter);
+                        next = false;
+                    }
+                }
 
                 VirtualServerDTO virtualServerDTO = null;
                 if (next) {
@@ -174,16 +187,20 @@ public class TaskService {
                         virtualServerDTO.setLogin(user);
                         virtualServerDTO.setPassword(password);
                         virtualServerDTO.setIdRouter(idRouter);
+                        virtualServerDTO.setIdTask(task.getId());
 
                         virtualServerRepo.save(virtualServerDTO);
+
+                        task.setLinkIdVSrv(virtualServerDTO.getId());
+
                     } catch (Exception e) {
-                        status("ERROR", null, "AddPortForwarding response: " + Util.stackTraceToString(e));
+                        status("ERROR", task.getId(), "AddPortForwarding response: " + Util.stackTraceToString(e));
                         next = false;
                     }
                 }
                 if (next) {
                     try {
-                        //Add port forwarding
+                        //Router add port forwarding
                         String resp = UtilRouter.addPortForwarding(
                                 routerDTO.getIp(),
                                 "RDP_" + virtualServerDTO.getIso() + virtualServerDTO.getId(),
@@ -192,24 +209,24 @@ public class TaskService {
                                 portServer + ""
                         );
 
-                        status("INFO", virtualServerDTO.getId(), "AddPortForwarding response: " + resp);
+                        status("INFO", task.getId(), "AddPortForwarding response: " + resp);
                         Map<String, Object> rp = new Gson().fromJson(resp, Map.class);
                         //{ "id":1, "others":{ "max_rules":64 }, "error_code":"34800" }
                         String errorCode = (String) rp.get("error_code");
-                        System.out.println("Error_code: "+errorCode);
+                        System.out.println("Error_code: " + errorCode);
                         if (!errorCode.equals("0")) {
                             System.out.println("NOT EQUALS");
                             next = false;
                         }
                     } catch (Exception e) {
-                        status("ERROR", virtualServerDTO.getId(), "AddPortForwarding response: " + Util.stackTraceToString(e));
+                        status("ERROR", task.getId(), "AddPortForwarding response: " + Util.stackTraceToString(e));
                         next = false;
                     }
                 }
                 if (next) {
-                    try {
+                    try { //VirtualBoxController
                         String r = greetingClient.nettyRequest(
-                                "http://localhost:3000",
+                                "http://" + freeServer.getIp() + ":3000",
                                 "",
                                 Util.jsonObjectToString(virtualServerDTO),
                                 5
@@ -217,7 +234,7 @@ public class TaskService {
 
                         Util.logConsole(Thread.currentThread(), "VirtualBoxController response: " + r);
                     } catch (Exception e) {
-                        status("ERROR", virtualServerDTO.getId(), "VirtualBoxController response: " + Util.stackTraceToString(e));
+                        status("ERROR", task.getId(), "VirtualBoxController response: " + Util.stackTraceToString(e));
                         next = false;
                     }
                 }
@@ -235,8 +252,8 @@ public class TaskService {
                 task.setStatus(1);
 
             } else {
-                Util.logConsole(Thread.currentThread(), "No free server or router");
-                task.setResult("No free server or router");
+                Util.logConsole(Thread.currentThread(), "Not found free server or router");
+                task.setResult("Not found free server or router");
                 //Нет сервера, просто вперёд передвигаем исполнение
                 task.setDateExecute(new Timestamp(System.currentTimeMillis() + 60000));
             }
