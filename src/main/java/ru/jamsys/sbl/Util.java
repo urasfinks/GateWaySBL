@@ -113,7 +113,7 @@ public class Util {
         final char[] uppercase = "ABCDEFGJKLMNPRSTUVWXYZ".toCharArray();
         final char[] numbers = "0123456789".toCharArray();
         final char[] symbols = "^$?!@#%&".toCharArray();
-        final char[] allAllowed = "abcdefghijklmnopqrstuvwxyzABCDEFGJKLMNPRSTUVWXYZ0123456789^$?!@#%&".toCharArray();
+        final char[] allAllowed = "abcdefghijklmnopqrstuvwxyzABCDEFGJKLMNPRSTUVWXYZ0123456789^?!@#%".toCharArray();
 
         //Use cryptographically secure random number generator
         Random random = new SecureRandom();

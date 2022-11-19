@@ -122,7 +122,7 @@ public class SblWebHandler {
                         crudRepository.save(o);
                         //jRet.addData(o.getClass().getName().replace("DTO", ""), o);
                         String[] split = o.getClass().getName().split("\\.");
-                        jRet.addData(split[split.length-1].replace("DTO", ""), o);
+                        jRet.addData(split[split.length - 1].replace("DTO", ""), o);
                     } else {
                         jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
                     }
@@ -196,29 +196,102 @@ public class SblWebHandler {
     public Mono<ServerResponse> patchTaskComplete(ServerRequest serverRequest) {
         return patchHandler(serverRequest, (body, jRet) -> {
             System.out.println(body);
-            Map<String, Object> req = new Gson().fromJson(body, Map.class);
-            if (req.containsKey("idTask") && req.containsKey("status")) {
-                Double x = (Double) req.get("idTask");
-                TaskDTO task = taskRepo.findById(x.longValue()).orElse(null);
-                if (task != null) {
-                    if (task.getLinkIdSrv() != null) {
-                        ServerDTO serverDTO = serverRepo.findById(task.getLinkIdSrv()).orElse(null);
-                        if (serverDTO != null) {
-                            Double x2 = (Double) req.get("status");
-                            serverDTO.setStatus(x2.intValue());
-                            serverRepo.save(serverDTO);
-                        } else {
-                            jRet.set(HttpStatus.EXPECTATION_FAILED, "Server by Task not found");
-                        }
-                    } else {
-                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Task server is null");
-                    }
-                } else {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Not found task: " + body);
+            Map<String, Object> req = null;
+            boolean next = true;
+            if (next) {
+                try {
+                    req = new Gson().fromJson(body, Map.class);
+                } catch (Exception e) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Json parsing fail: " + body);
+                    next = false;
                 }
-            } else {
-                jRet.set(HttpStatus.EXPECTATION_FAILED, "Not found idTask or status field");
             }
+
+            if (next) {
+                if (!req.containsKey("idTask")) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "idTask not found is json: " + body);
+                    next = false;
+                }
+            }
+
+            if (next) {
+                if (!req.containsKey("status")) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "status not found in json: " + body);
+                    next = false;
+                }
+            }
+            TaskDTO task = null;
+            if (next) {
+                try {
+                    Double x = (Double) req.get("idTask");
+                    task = taskRepo.findById(x.longValue()).orElse(null);
+                    if (task == null) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Not found task: " + body);
+                        next = false;
+                    }
+                } catch (Exception e) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Exception get task: " + e);
+                    next = false;
+                }
+            }
+
+            if (next) {
+                if (task.getLinkIdSrv() == null) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Server by Task is null");
+                    next = false;
+                }
+            }
+            ServerDTO serverDTO = null;
+            if (next) {
+                try {
+                    serverDTO = serverRepo.findById(task.getLinkIdSrv()).orElse(null);
+                    if (serverDTO == null) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Server by Task not found");
+                        next = false;
+                    }
+                } catch (Exception e) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Exception get server: " + e);
+                    next = false;
+                }
+            }
+
+            if (next) {
+                try {
+                    Double x2 = (Double) req.get("status");
+                    serverDTO.setStatus(x2.intValue());
+                    serverRepo.save(serverDTO);
+                } catch (Exception e) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Set status server exception: " + e);
+                    next = false;
+                }
+            }
+
+            if (next) {
+                if (task.getLinkIdVSrv() == null) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Task Virtual server is null");
+                    next = false;
+                }
+            }
+
+            VirtualServerDTO virtualServerDTO = null;
+            if (next) {
+                try {
+                    virtualServerDTO = virtualServerRepo.findById(task.getLinkIdVSrv()).orElse(null);
+                    if (virtualServerDTO == null) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Task VirtualServer is null");
+                        next = false;
+                    }
+                } catch (Exception e) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Get VirtualServer exception: " + e);
+                    next = false;
+                }
+            }
+
+            if (next) {
+                virtualServerDTO.setStatus(1);
+                virtualServerRepo.save(virtualServerDTO);
+            }
+
         });
     }
 
