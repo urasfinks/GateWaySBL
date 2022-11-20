@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.Util;
-import ru.jamsys.sbl.UtilRouter;
 import ru.jamsys.sbl.jpa.dto.*;
 import ru.jamsys.sbl.jpa.repo.*;
 import ru.jamsys.sbl.message.Message;
@@ -60,7 +59,7 @@ public class TaskService {
 
     @Transactional
     @Modifying(flushAutomatically = true, clearAutomatically = true)
-    public Message execOneTask() {
+    public Message exec() {
 
         Message ret = null;
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
@@ -217,9 +216,9 @@ public class TaskService {
                         createVmJson.put("localPortRouter", portServer);
                         createVmJson.put("nameRuleRouter", "RDP_" + virtualServerDTO.getIso() + virtualServerDTO.getId());
 
-                        String r = greetingClient.nettyRequest(
-                                "http://" + freeServer.getIp() + ":3000/CreateVM",
-                                "",
+                        String r = greetingClient.nettyRequestPost(
+                                "http://" + freeServer.getIp() + ":3000",
+                                "/CreateVM",
                                 Util.jsonObjectToString(createVmJson),
                                 5
                         ).block();

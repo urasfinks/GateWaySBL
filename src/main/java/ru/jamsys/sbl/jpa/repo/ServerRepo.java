@@ -11,7 +11,7 @@ import java.util.List;
 
 public interface ServerRepo extends CrudRepository<ServerDTO, Long> {
 
-    @Query("select t from ServerDTO t where t.status = 0 order by t.id asc")
+    @Query("select t from ServerDTO t where t.status = 0 and t.pingStatus = 1 order by t.id asc")
     List<ServerDTO> getAlready();
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

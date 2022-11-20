@@ -2,6 +2,7 @@ package ru.jamsys.sbl.component;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.json.Statistic;
 import ru.jamsys.sbl.scheduler.CmpServiceScheduler;
@@ -95,7 +96,11 @@ public class CmpStatistic extends CmpServiceScheduler {
             //Util.logConsole(Thread.currentThread(), Util.jsonObjectToString(statistic));
 
             try {
-                greetingClient.getMessage(Util.jsonObjectToString(statistic)).block();
+                greetingClient.nettyRequestPost(
+                        Util.getApplicationProperties("elk.url"),
+                        "/statistic/_doc",
+                        Util.jsonObjectToString(statistic),
+                        5).block();
             } catch (Exception e) {
                 e.printStackTrace();
             }

@@ -3,6 +3,7 @@ package ru.jamsys.sbl;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.springframework.core.env.Environment;
 import reactor.util.annotation.Nullable;
 
 import java.io.PrintWriter;
@@ -92,6 +93,18 @@ public class Util {
             e.printStackTrace();
         }
         return ret;
+    }
+
+    private static Environment env = null;
+
+    public static String getApplicationProperties(String key) throws Exception {
+        if (env == null) {
+            env = SblApplication.context.getBean(Environment.class);
+        }
+        if (env.getProperty(key) == null) {
+            throw new Exception("Properties elk.url is empty");
+        }
+        return env.getProperty(key);
     }
 
     public static void sleepMillis(int seconds) {

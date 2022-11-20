@@ -27,10 +27,13 @@ public class ServerDTO implements WebPatch<ServerDTO> {
     private Integer status = 0;
 
     @Column(name = "ping_date_srv", insertable = false)
-    private Timestamp datePing;
+    private Timestamp pingDate;
 
     @Column(name = "id_router", nullable = false)
     private Long idRouter;
+
+    @Column(name = "ping_status_srv", nullable = false, insertable = false)
+    private Integer pingStatus;
 
     public void patch(ServerDTO foreign) {
         if (foreign.getName() != null) {
@@ -42,8 +45,8 @@ public class ServerDTO implements WebPatch<ServerDTO> {
         if (foreign.getStatus() != null) {
             this.setStatus(foreign.getStatus());
         }
-        if (foreign.getDatePing() != null) {
-            this.setDatePing(foreign.getDatePing());
+        if (foreign.getPingDate() != null) {
+            this.setPingDate(foreign.getPingDate());
         }
     }
 
