@@ -39,9 +39,6 @@ public class VirtualServerDTO {
     @Column(name = "password_v_srv", nullable = false)
     private String password;
 
-    @Column(name = "id_router", nullable = false)
-    private Long idRouter;
-
     @Column(name = "status_v_srv", insertable = false)
     private Integer status = 0;
 

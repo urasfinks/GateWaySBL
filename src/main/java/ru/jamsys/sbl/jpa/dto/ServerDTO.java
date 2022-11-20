@@ -29,6 +29,9 @@ public class ServerDTO implements WebPatch<ServerDTO> {
     @Column(name = "ping_date_srv", insertable = false)
     private Timestamp datePing;
 
+    @Column(name = "id_router", nullable = false)
+    private Long idRouter;
+
     public void patch(ServerDTO foreign) {
         if (foreign.getName() != null) {
             this.setName(foreign.getName());

@@ -14,6 +14,7 @@ import ru.jamsys.sbl.message.MessageImpl;
 import ru.jamsys.sbl.web.GreetingClient;
 
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -148,12 +149,15 @@ public class TaskService {
 
     @Transactional
     public void actionCreateVirtualServer(TaskDTO task, Map<String, Object> parsed) {
-        long idRouter = 1L;
+
         if (parsed.containsKey("iso")) {
             //Получить доступный сервер, на который можно начать установку
             ServerDTO freeServer = getFreeServer();
-            RouterDTO routerDTO = routerRepo.findById(idRouter).orElse(null);
-            if (freeServer != null && routerDTO != null) {
+
+            if (freeServer != null) {
+
+                long idRouter = freeServer.getIdRouter();
+                RouterDTO routerDTO = routerRepo.findById(idRouter).orElse(null);
 
                 task.setLinkIdSrv(freeServer.getId());
 
@@ -186,7 +190,6 @@ public class TaskService {
                         virtualServerDTO.setPortRouter(portRouter);
                         virtualServerDTO.setLogin(user);
                         virtualServerDTO.setPassword(password);
-                        virtualServerDTO.setIdRouter(idRouter);
                         virtualServerDTO.setIdTask(task.getId());
 
                         virtualServerRepo.save(virtualServerDTO);
@@ -198,37 +201,26 @@ public class TaskService {
                         next = false;
                     }
                 }
-                if (next) {
-                    try {
-                        //Router add port forwarding
-                        String resp = UtilRouter.addPortForwarding(
-                                routerDTO.getIp(),
-                                "RDP_" + virtualServerDTO.getIso() + virtualServerDTO.getId(),
-                                portRouter + "",
-                                freeServer.getIp(),
-                                portServer + ""
-                        );
 
-                        status("INFO", task.getId(), "AddPortForwarding response: " + resp);
-                        Map<String, Object> rp = new Gson().fromJson(resp, Map.class);
-                        //{ "id":1, "others":{ "max_rules":64 }, "error_code":"34800" }
-                        String errorCode = (String) rp.get("error_code");
-                        System.out.println("Error_code: " + errorCode);
-                        if (!errorCode.equals("0")) {
-                            System.out.println("NOT EQUALS");
-                            next = false;
-                        }
-                    } catch (Exception e) {
-                        status("ERROR", task.getId(), "AddPortForwarding response: " + Util.stackTraceToString(e));
-                        next = false;
-                    }
-                }
                 if (next) {
                     try { //VirtualBoxController
+
+                        Map<String, Object> createVmJson = new HashMap<>();
+                        createVmJson.put("id", virtualServerDTO.getId());
+                        createVmJson.put("portLocal", virtualServerDTO.getPortLocal());
+                        createVmJson.put("iso", virtualServerDTO.getIso());
+                        createVmJson.put("login", virtualServerDTO.getLogin());
+                        createVmJson.put("password", virtualServerDTO.getPassword());
+                        createVmJson.put("idTask", virtualServerDTO.getIdTask());
+                        createVmJson.put("ipRouter", routerDTO.getIp());
+                        createVmJson.put("internetPortRouter", portRouter);
+                        createVmJson.put("localPortRouter", portServer);
+                        createVmJson.put("nameRuleRouter", "RDP_" + virtualServerDTO.getIso() + virtualServerDTO.getId());
+
                         String r = greetingClient.nettyRequest(
-                                "http://" + freeServer.getIp() + ":3000",
+                                "http://" + freeServer.getIp() + ":3000/CreateVM",
                                 "",
-                                Util.jsonObjectToString(virtualServerDTO),
+                                Util.jsonObjectToString(createVmJson),
                                 5
                         ).block();
 

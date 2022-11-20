@@ -12,7 +12,7 @@ public interface VirtualServerRepo extends CrudRepository<VirtualServerDTO, Long
     @Query("select t from VirtualServerDTO t where t.idSrv = :idServer order by t.portLocal desc ")
     List<VirtualServerDTO> getPortServer(@Param("idServer") Long idServer);
 
-    @Query("select t from VirtualServerDTO t where t.idRouter = :idRouter order by t.portRouter desc ")
+    @Query("select vs from VirtualServerDTO vs inner join ServerDTO s on s.id = vs.idSrv where s.idRouter = :idRouter order by vs.portRouter desc ")
     List<VirtualServerDTO> getPortRouter(@Param("idRouter") Long idRouter);
 
 }

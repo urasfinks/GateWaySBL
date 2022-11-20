@@ -17,4 +17,7 @@ public class RouterDTO {
     @Column(name = "ip_router", nullable = false)
     private String ip;
 
+    @Column(name = "information_router", nullable = false)
+    private String information;
+
 }
