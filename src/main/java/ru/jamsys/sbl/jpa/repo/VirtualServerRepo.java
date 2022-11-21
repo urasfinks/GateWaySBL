@@ -3,11 +3,15 @@ package ru.jamsys.sbl.jpa.repo;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.jpa.dto.VirtualServerDTO;
 import ru.jamsys.sbl.jpa.dto.custom.ServerStatistic;
 
 import java.util.List;
 
+@Repository
+@Transactional
 public interface VirtualServerRepo extends CrudRepository<VirtualServerDTO, Long> {
 
     @Query("select t from VirtualServerDTO t where t.idSrv = :idServer order by t.portLocal desc ")

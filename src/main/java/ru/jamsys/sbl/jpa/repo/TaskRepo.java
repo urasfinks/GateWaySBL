@@ -4,11 +4,15 @@ import org.hibernate.annotations.Immutable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.jpa.dto.TaskDTO;
 
 import java.sql.Timestamp;
 import java.util.List;
 
+@Repository
+@Transactional
 @Immutable
 public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
 //    @Query("from TaskDTO t where t.dateExecute < :time and t.status = 0")

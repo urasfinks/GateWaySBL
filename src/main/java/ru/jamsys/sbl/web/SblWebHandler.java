@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
@@ -18,13 +19,28 @@ import ru.jamsys.sbl.WrapJsonToObject;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.jpa.dto.*;
 import ru.jamsys.sbl.jpa.repo.*;
-import ru.jamsys.sbl.jpa.service.NoCache;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
 @Component
-public class SblWebHandler extends NoCache {
+public class SblWebHandler {
+
+    @PersistenceContext
+    private EntityManager em;
+
+    @Transactional
+    protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
+        //Это самое больше зло, с чем я встречался
+        T ret = crudRepository.save(entity);
+        try {
+            em.flush();
+        } catch (Exception e) {
+        }
+        return ret;
+    }
 
     ClientRepo clientRepo;
     ServerRepo serverRepo;
@@ -195,7 +211,8 @@ public class SblWebHandler extends NoCache {
     @NonNull
     public Mono<ServerResponse> patchTaskComplete(ServerRequest serverRequest) {
         return patchHandler(serverRequest, (body, jRet) -> {
-            System.out.println(body);
+            Util.logConsole(Thread.currentThread(), "::patchTaskComplete " + body);
+
             Map<String, Object> req = null;
             boolean next = true;
             if (next) {
@@ -288,15 +305,17 @@ public class SblWebHandler extends NoCache {
             }
 
             if (next) {
-                try{
+                try {
                     Double x2 = (Double) req.get("status");
                     virtualServerDTO.setStatus(x2.intValue());
                     saveWithoutCache(virtualServerRepo, virtualServerDTO);
-                }catch (Exception e){
+                } catch (Exception e) {
                     jRet.set(HttpStatus.EXPECTATION_FAILED, "Set status VirtualServer exception: " + e);
                     next = false;
                 }
             }
+
+            Util.logConsole(Thread.currentThread(), "<<patchTaskComplete Next: " + next + "; jRet: " + jRet.toString());
         });
     }
 

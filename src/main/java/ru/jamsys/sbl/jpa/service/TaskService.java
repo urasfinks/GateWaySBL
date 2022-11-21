@@ -3,6 +3,7 @@ package ru.jamsys.sbl.jpa.service;
 import com.google.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.Util;
@@ -12,13 +13,29 @@ import ru.jamsys.sbl.message.Message;
 import ru.jamsys.sbl.message.MessageImpl;
 import ru.jamsys.sbl.web.GreetingClient;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
-public class TaskService extends NoCache{
+public class TaskService {
+
+    @PersistenceContext
+    private EntityManager em;
+
+    @Transactional
+    protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
+        //Это самое больше зло, с чем я встречался
+        T ret = crudRepository.save(entity);
+        try {
+            em.flush();
+        } catch (Exception e) {
+        }
+        return ret;
+    }
 
     GreetingClient greetingClient;
     VirtualServerRepo virtualServerRepo;
@@ -258,7 +275,7 @@ public class TaskService extends NoCache{
                 Util.logConsole(Thread.currentThread(), "Not found free server or router");
                 task.setResult("Not found free server or router");
                 //Нет сервера, просто вперёд передвигаем исполнение
-                task.setDateExecute(new Timestamp(System.currentTimeMillis() + 60000));
+                task.setDateExecute(new Timestamp(System.currentTimeMillis() + 10000));
             }
         } else {
             Util.logConsole(Thread.currentThread(), "Field iso undefined");
