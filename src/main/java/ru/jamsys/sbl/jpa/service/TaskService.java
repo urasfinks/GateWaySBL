@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.jamsys.sbl.SblApplication;
 import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.jpa.dto.*;
 import ru.jamsys.sbl.jpa.repo.*;
@@ -77,39 +78,40 @@ public class TaskService {
     @Transactional
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     public Message exec() {
-
         Message ret = null;
-        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-        List<TaskDTO> listTask = taskRepo.getAlready(timestamp);
-        //Util.logConsole(Thread.currentThread(), "::execOneTask count: " + listTask.size());
-        if (listTask.size() > 0) {
-            TaskDTO task = taskRepo.test(listTask.get(0).getId());
-            if (task != null && task.getStatus() == 0) {
-                //Util.logConsole(Thread.currentThread(), "::execOneTask work: " + task);
-                Util.logConsole(Thread.currentThread(), "::execOneTask start: " + task.getId());
-                try {
-                    task.setResult(""); //Если взяли в работу, то от предыдущего раза очистим результат
-                    execTask(task);
-                } catch (Exception e) {
-                    Integer retry = task.getRetry();
-                    if (retry != null) {
-                        task.setRetry(++retry);
+        synchronized (SblApplication.class) {
+            Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+            List<TaskDTO> listTask = taskRepo.getAlready(timestamp);
+            //Util.logConsole(Thread.currentThread(), "::execOneTask count: " + listTask.size());
+            if (listTask.size() > 0) {
+                TaskDTO task = taskRepo.lock(listTask.get(0).getId());
+                if (task != null && task.getStatus() == 0) {
+                    //Util.logConsole(Thread.currentThread(), "::execOneTask work: " + task);
+                    Util.logConsole(Thread.currentThread(), "::execOneTask start: " + task.getId());
+                    try {
+                        task.setResult(""); //Если взяли в работу, то от предыдущего раза очистим результат
+                        execTask(task);
+                    } catch (Exception e) {
+                        Integer retry = task.getRetry();
+                        if (retry != null) {
+                            task.setRetry(++retry);
+                        }
+                        retry = task.getRetry();
+                        if (retry != null && retry < 5) {
+                            task.setStatus(0);
+                        } else {
+                            task.setStatus(-1);
+                        }
+                        task.setResult(Util.stackTraceToString(e));
                     }
-                    retry = task.getRetry();
-                    if (retry != null && retry < 5) {
-                        task.setStatus(0);
-                    } else {
-                        task.setStatus(-1);
-                    }
-                    task.setResult(Util.stackTraceToString(e));
+                    task.setDateUpdate(new Timestamp(System.currentTimeMillis()));
+                    TaskDTO savedTask = saveWithoutCache(taskRepo, task);
+                    //Util.logConsole(Thread.currentThread(), "::execOneTask saved task: " + savedTask);
+                    ret = new MessageImpl();
                 }
-                task.setDateUpdate(new Timestamp(System.currentTimeMillis()));
-                TaskDTO savedTask = saveWithoutCache(taskRepo, task);
-                //Util.logConsole(Thread.currentThread(), "::execOneTask saved task: " + savedTask);
-                ret = new MessageImpl();
             }
+            //Util.logConsole(Thread.currentThread(), "::execOneTask finish");
         }
-        //Util.logConsole(Thread.currentThread(), "::execOneTask finish");
         return ret;
     }
 
@@ -275,7 +277,7 @@ public class TaskService {
                 Util.logConsole(Thread.currentThread(), "Not found free server or router");
                 task.setResult("Not found free server or router");
                 //Нет сервера, просто вперёд передвигаем исполнение
-                task.setDateExecute(new Timestamp(System.currentTimeMillis() + 10000));
+                task.setDateExecute(new Timestamp(System.currentTimeMillis() + 1000));
             }
         } else {
             Util.logConsole(Thread.currentThread(), "Field iso undefined");

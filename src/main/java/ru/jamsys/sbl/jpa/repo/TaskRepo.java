@@ -1,6 +1,7 @@
 package ru.jamsys.sbl.jpa.repo;
 
 import org.hibernate.annotations.Immutable;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
@@ -18,7 +19,8 @@ public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
 //    @Query("from TaskDTO t where t.dateExecute < :time and t.status = 0")
 //    List<TaskDTO> getExecute(@Param("time") Timestamp time);
 
-    @Query("select t from TaskDTO t where t.dateExecute < :time and t.status = 0")
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("select t from TaskDTO t where t.dateExecute < :time and t.status = 0 order by t.id")
     List<TaskDTO> getAlready(@Param("time") Timestamp time);
 
     //@Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -26,14 +28,17 @@ public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
     //@Modifying(flushAutomatically = true, clearAutomatically = true)
     //@Transactional
     @Query(nativeQuery = true, value = "select * from task where id_task = :id_task for update OF task SKIP LOCKED")
-    TaskDTO test(@Param("id_task") Long id_task);
+    TaskDTO lock(@Param("id_task") Long id_task);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("select t from TaskDTO t where t.status = 1")
     List<TaskDTO> getNormal();
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("select t from TaskDTO t where t.status = -1")
     List<TaskDTO> getBad();
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("select t from TaskDTO t where t.status = 0")
     List<TaskDTO> getPrepare();
 }

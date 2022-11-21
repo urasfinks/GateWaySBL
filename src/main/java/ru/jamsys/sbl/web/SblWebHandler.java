@@ -14,6 +14,7 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import ru.jamsys.sbl.SblApplication;
 import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.WrapJsonToObject;
 import ru.jamsys.sbl.component.CmpStatistic;
@@ -132,13 +133,15 @@ public class SblWebHandler {
                             Util.jsonToObjectOverflowProperties(body, classType)
                             : Util.jsonToObject(body, classType);
                     if (wrapJsonToObject.getException() == null) {
-                        if (handler != null) {
-                            handler.accept(wrapJsonToObject, body);
+                        synchronized (SblApplication.class) {
+                            if (handler != null) {
+                                handler.accept(wrapJsonToObject, body);
+                            }
+                            T o = wrapJsonToObject.getObject();
+                            saveWithoutCache(crudRepository, o);
+                            String[] split = o.getClass().getName().split("\\.");
+                            jRet.addData(split[split.length - 1].replace("DTO", ""), o);
                         }
-                        T o = wrapJsonToObject.getObject();
-                        saveWithoutCache(crudRepository, o);
-                        String[] split = o.getClass().getName().split("\\.");
-                        jRet.addData(split[split.length - 1].replace("DTO", ""), o);
                     } else {
                         jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
                     }
@@ -193,7 +196,9 @@ public class SblWebHandler {
             JsonResponse jRet = new JsonResponse();
             if (body != null && !body.isEmpty()) {
                 try {
-                    consumer.accept(body, jRet);
+                    synchronized (SblApplication.class) {
+                        consumer.accept(body, jRet);
+                    }
                 } catch (Exception e) {
                     jRet.set(HttpStatus.EXPECTATION_FAILED, e.toString());
                     e.printStackTrace();
