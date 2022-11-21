@@ -8,7 +8,7 @@ import java.sql.Timestamp;
 @Data
 @Entity
 @Table(name = "srv")
-public class ServerDTO implements WebPatch<ServerDTO> {
+public class ServerDTO {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sbl_seq")
     @Column(name = "id_srv", nullable = false)
@@ -35,19 +35,10 @@ public class ServerDTO implements WebPatch<ServerDTO> {
     @Column(name = "ping_status_srv", nullable = false, insertable = false)
     private Integer pingStatus;
 
-    public void patch(ServerDTO foreign) {
-        if (foreign.getName() != null) {
-            this.setName(foreign.getName());
-        }
-        if (foreign.getIp() != null) {
-            this.setIp(foreign.getIp());
-        }
-        if (foreign.getStatus() != null) {
-            this.setStatus(foreign.getStatus());
-        }
-        if (foreign.getPingDate() != null) {
-            this.setPingDate(foreign.getPingDate());
-        }
-    }
+    @Column(name = "id_task", nullable = false, insertable = false)
+    private Long idTask;
+
+    @Column(name = "lock_date_srv", insertable = false)
+    private Timestamp lockDate;
 
 }

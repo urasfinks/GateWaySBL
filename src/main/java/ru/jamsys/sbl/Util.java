@@ -102,7 +102,7 @@ public class Util {
             env = SblApplication.context.getBean(Environment.class);
         }
         if (env.getProperty(key) == null) {
-            throw new Exception("Properties elk.url is empty");
+            throw new Exception("Properties " + key + " is empty");
         }
         return env.getProperty(key);
     }

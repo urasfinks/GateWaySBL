@@ -18,12 +18,13 @@ import ru.jamsys.sbl.WrapJsonToObject;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.jpa.dto.*;
 import ru.jamsys.sbl.jpa.repo.*;
+import ru.jamsys.sbl.jpa.service.NoCache;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
 
 @Component
-public class SblWebHandler {
+public class SblWebHandler extends NoCache {
 
     ClientRepo clientRepo;
     ServerRepo serverRepo;
@@ -104,7 +105,7 @@ public class SblWebHandler {
     }
 
     private <T> Mono<ServerResponse> postHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType, BiConsumer<WrapJsonToObject<T>, String> handler) {
-        cmpStatistic.incShareStatistic("WebRequestPost");
+        cmpStatistic.incShareStatistic("WebRequest");
         Mono<String> bodyData = serverRequest.bodyToMono(String.class);
 
         return bodyData.flatMap(body -> {
@@ -119,8 +120,7 @@ public class SblWebHandler {
                             handler.accept(wrapJsonToObject, body);
                         }
                         T o = wrapJsonToObject.getObject();
-                        crudRepository.save(o);
-                        //jRet.addData(o.getClass().getName().replace("DTO", ""), o);
+                        saveWithoutCache(crudRepository, o);
                         String[] split = o.getClass().getName().split("\\.");
                         jRet.addData(split[split.length - 1].replace("DTO", ""), o);
                     } else {
@@ -171,7 +171,7 @@ public class SblWebHandler {
     }
 
     public Mono<ServerResponse> patchHandler(ServerRequest serverRequest, BiConsumer<String, JsonResponse> consumer) {
-        cmpStatistic.incShareStatistic("WebRequestPatch");
+        cmpStatistic.incShareStatistic("WebRequest");
         Mono<String> bodyData = serverRequest.bodyToMono(String.class);
         return bodyData.flatMap(body -> {
             JsonResponse jRet = new JsonResponse();
@@ -257,9 +257,9 @@ public class SblWebHandler {
 
             if (next) {
                 try {
-                    Double x2 = (Double) req.get("status");
-                    serverDTO.setStatus(x2.intValue());
-                    serverRepo.save(serverDTO);
+                    Util.logConsole(Thread.currentThread(), "ServerDTO TaskComplete разблокирую сервер");
+                    serverDTO.setStatus(0); //Сам URL говорит что это конечная итарация VirtualBoxController, переводим сервер в режим готовности на обработку тасков
+                    saveWithoutCache(serverRepo, serverDTO);
                 } catch (Exception e) {
                     jRet.set(HttpStatus.EXPECTATION_FAILED, "Set status server exception: " + e);
                     next = false;
@@ -288,26 +288,14 @@ public class SblWebHandler {
             }
 
             if (next) {
-                virtualServerDTO.setStatus(1);
-                virtualServerRepo.save(virtualServerDTO);
-            }
-
-        });
-    }
-
-    public Mono<ServerResponse> patchServer(ServerRequest serverRequest) {
-        return patchHandler(serverRequest, (body, jRet) -> {
-            WrapJsonToObject<ServerDTO> wrapJsonToObject = Util.jsonToObject(body, ServerDTO.class);
-            if (wrapJsonToObject.getException() == null) {
-                ServerDTO byId = serverRepo.findById(wrapJsonToObject.getObject().getId()).orElse(null);
-                if (byId != null) {
-                    byId.patch(wrapJsonToObject.getObject());
-                    serverRepo.save(byId);
-                } else {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Not found server by id");
+                try{
+                    Double x2 = (Double) req.get("status");
+                    virtualServerDTO.setStatus(x2.intValue());
+                    saveWithoutCache(virtualServerRepo, virtualServerDTO);
+                }catch (Exception e){
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Set status VirtualServer exception: " + e);
+                    next = false;
                 }
-            } else {
-                jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
             }
         });
     }

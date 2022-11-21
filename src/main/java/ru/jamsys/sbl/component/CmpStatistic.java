@@ -27,6 +27,22 @@ public class CmpStatistic extends CmpServiceScheduler {
 
     private final Map<String, AtomicInteger> shareStat = new ConcurrentHashMap<>();
 
+    public void shareStatistic(String name, Long count) {
+        if (!shareStat.containsKey(name)) {
+            shareStat.put(name, new AtomicInteger(count.intValue()));
+        } else {
+            shareStat.get(name).set(count.intValue());
+        }
+    }
+
+    public void shareStatistic(String name, Integer count) {
+        if (!shareStat.containsKey(name)) {
+            shareStat.put(name, new AtomicInteger(count));
+        } else {
+            shareStat.get(name).set(count);
+        }
+    }
+
     public void incShareStatistic(String name) {
         if (!shareStat.containsKey(name)) {
             shareStat.put(name, new AtomicInteger(1));
@@ -84,13 +100,8 @@ public class CmpStatistic extends CmpServiceScheduler {
             Map<String, Integer> map2 = new HashMap<>();
             String[] list = shareStat.keySet().toArray(new String[0]);
             for (String item : list) {
-                int andSet = shareStat.get(item).getAndSet(0);
-//                if (andSet == 0) {
-//                    shareStat.remove(item);
-//                } else {
-//
-//                }
-                map2.put(item, andSet);
+                int value = shareStat.get(item).getAndSet(0);
+                map2.put(item, value);
             }
             statistic.setShare(map2);
             //Util.logConsole(Thread.currentThread(), Util.jsonObjectToString(statistic));

@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-public class TaskService {
+public class TaskService extends NoCache{
 
     GreetingClient greetingClient;
     VirtualServerRepo virtualServerRepo;
@@ -68,7 +68,8 @@ public class TaskService {
         if (listTask.size() > 0) {
             TaskDTO task = taskRepo.test(listTask.get(0).getId());
             if (task != null && task.getStatus() == 0) {
-                Util.logConsole(Thread.currentThread(), "::execOneTask work: " + task);
+                //Util.logConsole(Thread.currentThread(), "::execOneTask work: " + task);
+                Util.logConsole(Thread.currentThread(), "::execOneTask start: " + task.getId());
                 try {
                     task.setResult(""); //Если взяли в работу, то от предыдущего раза очистим результат
                     execTask(task);
@@ -86,7 +87,7 @@ public class TaskService {
                     task.setResult(Util.stackTraceToString(e));
                 }
                 task.setDateUpdate(new Timestamp(System.currentTimeMillis()));
-                TaskDTO savedTask = taskRepo.save(task);
+                TaskDTO savedTask = saveWithoutCache(taskRepo, task);
                 //Util.logConsole(Thread.currentThread(), "::execOneTask saved task: " + savedTask);
                 ret = new MessageImpl();
             }
@@ -122,13 +123,20 @@ public class TaskService {
         return ++maxPortRouter;
     }
 
-    private ServerDTO getFreeServer() {
-        List<ServerDTO> alreadyServer = serverRepo.getAlready();
-        if (alreadyServer.size() > 0) {
-            ServerDTO srv = alreadyServer.get(0);
-            srv.setStatus(1);
-            serverRepo.save(srv);
-            return srv;
+    private ServerDTO getFreeServer(TaskDTO task) {
+        try {
+            List<ServerDTO> alreadyServer = serverRepo.getAlready();
+            if (alreadyServer.size() > 0) {
+                ServerDTO srv = alreadyServer.get(0);
+                srv.setStatus(1);
+                srv.setIdTask(task.getId());
+                srv.setLockDate(new Timestamp(System.currentTimeMillis()));
+                saveWithoutCache(serverRepo, srv);
+                Util.logConsole(Thread.currentThread(), "ServerDTO Блокирую сервер getFree");
+                return srv;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return null;
     }
@@ -139,8 +147,8 @@ public class TaskService {
             status.setLevel("INFO");
             status.setData(data);
             status.setIdTask(idTask);
-            System.out.println(status);
-            taskStatusRepo.save(status);
+            //System.out.println(status);
+            saveWithoutCache(taskStatusRepo, status);
         } else {
             Util.logConsole(Thread.currentThread(), "[" + level + "] " + data);
         }
@@ -148,13 +156,13 @@ public class TaskService {
 
     @Transactional
     public void actionCreateVirtualServer(TaskDTO task, Map<String, Object> parsed) {
-
+        String err = "";
         if (parsed.containsKey("iso")) {
             //Получить доступный сервер, на который можно начать установку
-            ServerDTO freeServer = getFreeServer();
+            ServerDTO freeServer = getFreeServer(task);
 
             if (freeServer != null) {
-
+                Util.logConsole(Thread.currentThread(), "actionCreateVirtualServer freeServer: " + freeServer.getId());
                 long idRouter = freeServer.getIdRouter();
                 RouterDTO routerDTO = routerRepo.findById(idRouter).orElse(null);
 
@@ -173,7 +181,8 @@ public class TaskService {
 
                 if (next) {
                     if (portRouter > 22100) {
-                        status("ERROR", task.getId(), "Max port forwarding on router " + idRouter);
+                        err = "Max port forwarding on router " + idRouter;
+                        status("ERROR", task.getId(), err);
                         next = false;
                     }
                 }
@@ -191,12 +200,13 @@ public class TaskService {
                         virtualServerDTO.setPassword(password);
                         virtualServerDTO.setIdTask(task.getId());
 
-                        virtualServerRepo.save(virtualServerDTO);
+                        saveWithoutCache(virtualServerRepo, virtualServerDTO);
 
                         task.setLinkIdVSrv(virtualServerDTO.getId());
 
                     } catch (Exception e) {
-                        status("ERROR", task.getId(), "AddPortForwarding response: " + Util.stackTraceToString(e));
+                        err = "AddPortForwarding response: " + Util.stackTraceToString(e);
+                        status("ERROR", task.getId(), err);
                         next = false;
                     }
                 }
@@ -225,7 +235,8 @@ public class TaskService {
 
                         Util.logConsole(Thread.currentThread(), "VirtualBoxController response: " + r);
                     } catch (Exception e) {
-                        status("ERROR", task.getId(), "VirtualBoxController response: " + Util.stackTraceToString(e));
+                        err = "VirtualBoxController response: " + Util.stackTraceToString(e);
+                        status("ERROR", task.getId(), err);
                         next = false;
                     }
                 }
@@ -233,11 +244,12 @@ public class TaskService {
                 if (!next) {
                     if (virtualServerDTO != null) {
                         virtualServerDTO.setStatus(-1);
-                        virtualServerRepo.save(virtualServerDTO);
+                        saveWithoutCache(virtualServerRepo, virtualServerDTO);
                     }
                     //Возвращаем сервер как доступный
+                    Util.logConsole(Thread.currentThread(), "ServerDTO Возвращаю статус серверу 0, потому что ошибка таски: " + err);
                     freeServer.setStatus(0);
-                    serverRepo.save(freeServer);
+                    saveWithoutCache(serverRepo, freeServer);
                 }
 
                 task.setStatus(1);

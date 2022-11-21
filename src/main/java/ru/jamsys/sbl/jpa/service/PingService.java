@@ -14,7 +14,7 @@ import java.sql.Timestamp;
 import java.util.Map;
 
 @Service
-public class PingService {
+public class PingService extends NoCache {
 
     @Autowired
     public void setServerRepo(ServerRepo serverRepo) {
@@ -57,7 +57,7 @@ public class PingService {
             } else {
                 serverDTO.setPingStatus(-1);
             }
-            serverRepo.save(serverDTO);
+            saveWithoutCache(serverRepo, serverDTO);
         }
         return ret;
     }

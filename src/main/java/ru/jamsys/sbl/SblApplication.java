@@ -8,6 +8,7 @@ import ru.jamsys.sbl.component.CmpServiceStabilizer;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.component.CmpStatisticCpu;
 import ru.jamsys.sbl.jpa.service.PingService;
+import ru.jamsys.sbl.jpa.service.StatisticService;
 import ru.jamsys.sbl.jpa.service.TaskService;
 import ru.jamsys.sbl.service.SblService;
 
@@ -32,11 +33,6 @@ public class SblApplication {
         context = SpringApplication.run(SblApplication.class, args);
         initContext(context, false);
         t1();
-        //t2();
-    }
-
-    public static void t2() {
-
     }
 
     public static void t1() {
@@ -49,6 +45,12 @@ public class SblApplication {
         SblService schedulerPing = context.getBean(CmpService.class).instance("SchedulerPing", 1, 1, 60, 3000, pingService::exec, null);
         schedulerPing.setTpsInputMax(1);
         schedulerPing.setDebug(false);
+
+        StatisticService statisticService = context.getBean(StatisticService.class);
+        SblService schedulerStatistic = context.getBean(CmpService.class).instance("SchedulerStatistic", 1, 1, 60, 1000, statisticService::exec, null);
+        schedulerStatistic.setTpsInputMax(1);
+        schedulerStatistic.setDebug(false);
+
     }
 
 }

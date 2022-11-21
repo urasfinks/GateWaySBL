@@ -1,18 +1,11 @@
 package ru.jamsys.sbl.jpa.repo;
 
-import org.hibernate.annotations.Cache;
-import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.Immutable;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
-import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.jpa.dto.TaskDTO;
 
-import javax.persistence.LockModeType;
 import java.sql.Timestamp;
 import java.util.List;
 
@@ -30,4 +23,13 @@ public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
     //@Transactional
     @Query(nativeQuery = true, value = "select * from task where id_task = :id_task for update OF task SKIP LOCKED")
     TaskDTO test(@Param("id_task") Long id_task);
+
+    @Query("select t from TaskDTO t where t.status = 1")
+    List<TaskDTO> getNormal();
+
+    @Query("select t from TaskDTO t where t.status = -1")
+    List<TaskDTO> getBad();
+
+    @Query("select t from TaskDTO t where t.status = 0")
+    List<TaskDTO> getPrepare();
 }

@@ -35,7 +35,6 @@ public class WebRouter {
                 .POST("/VirtualServerStatus", sblWebHandler::postVirtualServerStatus)
                 .POST("/TaskStatus", sblWebHandler::postTaskStatus)
 
-                .PATCH("/Server", accept(MediaType.TEXT_PLAIN), sblWebHandler::patchServer)
                 .PATCH("/TaskComplete", accept(MediaType.TEXT_PLAIN), sblWebHandler::patchTaskComplete)
                 .build();
 
