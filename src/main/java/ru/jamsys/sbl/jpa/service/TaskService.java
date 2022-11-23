@@ -82,35 +82,28 @@ public class TaskService {
         synchronized (SblApplication.class) {
             Timestamp timestamp = new Timestamp(System.currentTimeMillis());
             List<TaskDTO> listTask = taskRepo.getAlready(timestamp);
-            //Util.logConsole(Thread.currentThread(), "::execOneTask count: " + listTask.size());
             if (listTask.size() > 0) {
                 TaskDTO task = taskRepo.lock(listTask.get(0).getId());
                 if (task != null && task.getStatus() == 0) {
-                    //Util.logConsole(Thread.currentThread(), "::execOneTask work: " + task);
                     Util.logConsole(Thread.currentThread(), "::execOneTask start: " + task.getId());
+
+                    Integer retry = task.getRetry();
                     try {
-                        task.setResult(""); //Если взяли в работу, то от предыдущего раза очистим результат
-                        execTask(task);
-                    } catch (Exception e) {
-                        Integer retry = task.getRetry();
-                        if (retry != null) {
-                            task.setRetry(++retry);
-                        }
-                        retry = task.getRetry();
-                        if (retry != null && retry < 5) {
-                            task.setStatus(0);
+                        if (retry == null || retry < 5) {
+                            task.setResult(""); //Если взяли в работу, то от предыдущего раза очистим результат
+                            execTask(task);
                         } else {
-                            task.setStatus(-1);
+                            throw new Exception("Max retry");
                         }
-                        task.setResult(Util.stackTraceToString(e));
+                    } catch (Exception e) {
+                        task.setStatus(-1);
+                        status("ERROR", task, Util.stackTraceToString(e));
                     }
                     task.setDateUpdate(new Timestamp(System.currentTimeMillis()));
                     TaskDTO savedTask = saveWithoutCache(taskRepo, task);
-                    //Util.logConsole(Thread.currentThread(), "::execOneTask saved task: " + savedTask);
                     ret = new MessageImpl();
                 }
             }
-            //Util.logConsole(Thread.currentThread(), "::execOneTask finish");
         }
         return ret;
     }
@@ -127,7 +120,7 @@ public class TaskService {
                 actionControlVM(task, parsed);
             } else {
                 task.setStatus(-1);
-                task.setResult("Action not define");
+                status("ERROR", task, "Action not define");
             }
         }
     }
@@ -135,172 +128,223 @@ public class TaskService {
     @Transactional
     public void actionControlVM(TaskDTO task, Map<String, Object> parsed) {
         boolean next = true;
-        String err = "";
-        if (parsed.containsKey("name") && parsed.containsKey("command")) {
-            String name = (String) parsed.get("name");
-            String[] partsOfName = name.split("_");
-            VirtualServerDTO virtualServerDTO = virtualServerRepo.findById(Long.parseLong(partsOfName[partsOfName.length - 1])).orElse(null);
-            if (virtualServerDTO != null) {
-                ServerDTO serverDTO = serverRepo.findById(virtualServerDTO.getIdSrv()).orElse(null);
-                if (serverDTO != null && serverDTO.getStatus() == 0 && serverDTO.getPingStatus() == 1) {
 
-                    lockServer(serverDTO, task);
-                    task.setLinkIdVSrv(virtualServerDTO.getId());
-                    task.setLinkIdSrv(serverDTO.getId());
-                    try { //VirtualBoxController
-                        Map<String, Object> jsonRequest = new HashMap<>();
-                        jsonRequest.put("command", parsed.get("command"));
-                        jsonRequest.put("idTask", task.getId());
-                        jsonRequest.put("name", name);
-
-                        String r = greetingClient.nettyRequestPost(
-                                "http://" + serverDTO.getIp() + ":3000",
-                                "/ControlVM",
-                                Util.jsonObjectToString(jsonRequest),
-                                5
-                        ).block();
-                        Util.logConsole(Thread.currentThread(), "VirtualBoxController response: " + r);
-                    } catch (Exception e) {
-                        err = "VirtualBoxController response: " + Util.stackTraceToString(e);
-                        status("ERROR", task.getId(), err);
-                        next = false;
-                    }
-                    if (!next) {
-                        //Возвращаем сервер как доступный
-                        Util.logConsole(Thread.currentThread(), "ServerDTO Возвращаю статус серверу 0, потому что ошибка таски: " + err);
-                        serverDTO.setStatus(0);
-                        saveWithoutCache(serverRepo, serverDTO);
-                    }
-
-                    task.setStatus(1);
-
-                } else {
-                    Util.logConsole(Thread.currentThread(), "Server busy or not available");
-                    task.setResult("Server busy or not available");
-                    //Нет сервера, просто вперёд передвигаем исполнение
-                    task.setDateExecute(new Timestamp(System.currentTimeMillis() + 10000));
-                }
-            } else {
-                Util.logConsole(Thread.currentThread(), "VirtualServer not found by name: " + name);
-                task.setResult("VirtualServer not found by name: " + name);
-                task.setStatus(-1);
+        if (next) {
+            if (!parsed.containsKey("name")) {
+                taskError(task, "Field name undefined");
+                next = false;
             }
-        } else {
-            Util.logConsole(Thread.currentThread(), "Field name or command undefined");
-            task.setResult("Field name or command undefined");
+        }
+
+        if (next) {
+            if (!parsed.containsKey("command")) {
+                taskError(task, "Field command undefined");
+                next = false;
+            }
+        }
+
+        String name = null;
+
+        VirtualServerDTO virtualServerDTO = null;
+        if (next) {
+            name = (String) parsed.get("name");
+            String[] partsOfName = name.split("_");
+
+            virtualServerDTO = virtualServerRepo.findById(Long.parseLong(partsOfName[partsOfName.length - 1])).orElse(null);
+            if (virtualServerDTO == null) {
+                taskError(task, "VirtualServer not found by name: " + name);
+                next = false;
+            }
+        }
+
+        ServerDTO serverDTO = null;
+
+        if (next) {
+            serverDTO = serverRepo.findById(virtualServerDTO.getIdSrv()).orElse(null);
+            if (serverDTO == null) {
+                taskError(task, "Server not found by VM name: " + name);
+                next = false;
+            }
+        }
+
+        if (next) {
+            if (serverDTO.getStatus() != 0) {
+                taskFuture(task, "Server busy; Status: " + serverDTO.getStatus());
+                next = false;
+            }
+        }
+
+        if (next) {
+            if (serverDTO.getPingStatus() != 1) {
+                taskFuture(task, "Server not available; Status: " + serverDTO.getStatus());
+                next = false;
+            }
+        }
+
+        boolean lockServer = false;
+
+        if (next) {
+            lockServer(serverDTO, task);
+            lockServer = true;
+            task.setLinkIdVSrv(virtualServerDTO.getId());
+            task.setLinkIdSrv(serverDTO.getId());
+
+            try { //VirtualBoxController
+                Map<String, Object> jsonRequest = new HashMap<>();
+                jsonRequest.put("command", parsed.get("command"));
+                jsonRequest.put("idTask", task.getId());
+                jsonRequest.put("name", name);
+
+                String r = greetingClient.nettyRequestPost(
+                        "http://" + serverDTO.getIp() + ":" + serverDTO.getPort(),
+                        "/ControlVM",
+                        Util.jsonObjectToString(jsonRequest),
+                        5
+                ).block();
+                status("RESPONSE", task, "VirtualBoxController response: " + r);
+            } catch (Exception e) {
+                //Да, сломались, попробуем ещё
+                taskFuture(task, "VirtualBoxController request exception: " + Util.stackTraceToString(e));
+                next = false;
+            }
+
+            if (next) {
+                if (parsed.get("command").equals("remove")) {
+                    virtualServerDTO.setStatus(-2);
+                    saveWithoutCache(virtualServerRepo, virtualServerDTO);
+                }
+                taskComplete(task);
+            }
+
+            if (next == false && lockServer == true) {
+                status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
+                serverDTO.setStatus(0);
+                saveWithoutCache(serverRepo, serverDTO);
+            }
         }
     }
 
     @Transactional
     public void actionCreateVM(TaskDTO task, Map<String, Object> parsed) {
-        String err = "";
-        if (parsed.containsKey("iso")) {
-            //Получить доступный сервер, на который можно начать установку
-            ServerDTO freeServer = getFreeServer(task);
-
-            if (freeServer != null) {
-                Util.logConsole(Thread.currentThread(), "actionCreateVM freeServer: " + freeServer.getId());
-                long idRouter = freeServer.getIdRouter();
-                RouterDTO routerDTO = routerRepo.findById(idRouter).orElse(null);
-
-                task.setLinkIdSrv(freeServer.getId());
-
-                int portRouter = getNextPortRouter(idRouter);
-                int portServer = getNextPortServer(freeServer.getId());
-
-
-                String user = Util.genUser();
-                String password = Util.genPassword();
-
-                Util.logConsole(Thread.currentThread(), "PortRouter: " + portRouter + "; PortServer: " + portServer);
-
-                boolean next = true;
-
-                if (next) {
-                    if (portRouter > 22100) {
-                        err = "Max port forwarding on router " + idRouter;
-                        status("ERROR", task.getId(), err);
-                        next = false;
-                    }
-                }
-
-                VirtualServerDTO virtualServerDTO = null;
-                if (next) {
-                    try {
-                        virtualServerDTO = new VirtualServerDTO();
-                        virtualServerDTO.setIdSrv(freeServer.getId());
-                        virtualServerDTO.setIdClient(task.getIdClient());
-                        virtualServerDTO.setIso((String) parsed.get("iso"));
-                        virtualServerDTO.setPortLocal(portServer);
-                        virtualServerDTO.setPortRouter(portRouter);
-                        virtualServerDTO.setLogin(user);
-                        virtualServerDTO.setPassword(password);
-                        virtualServerDTO.setIdTask(task.getId());
-
-                        saveWithoutCache(virtualServerRepo, virtualServerDTO);
-
-                        task.setLinkIdVSrv(virtualServerDTO.getId());
-
-                    } catch (Exception e) {
-                        err = "AddPortForwarding response: " + Util.stackTraceToString(e);
-                        status("ERROR", task.getId(), err);
-                        next = false;
-                    }
-                }
-
-                if (next) {
-                    try { //VirtualBoxController
-
-                        Map<String, Object> jsonRequest = new HashMap<>();
-                        jsonRequest.put("id", virtualServerDTO.getId());
-                        jsonRequest.put("portLocal", virtualServerDTO.getPortLocal());
-                        jsonRequest.put("iso", virtualServerDTO.getIso());
-                        jsonRequest.put("login", virtualServerDTO.getLogin());
-                        jsonRequest.put("password", virtualServerDTO.getPassword());
-                        jsonRequest.put("idTask", virtualServerDTO.getIdTask());
-                        jsonRequest.put("ipRouter", routerDTO.getIp());
-                        jsonRequest.put("internetPortRouter", portRouter);
-                        jsonRequest.put("localPortRouter", portServer);
-                        jsonRequest.put("nameRuleRouter", "RDP_" + virtualServerDTO.getIso() + virtualServerDTO.getId());
-
-                        String r = greetingClient.nettyRequestPost(
-                                "http://" + freeServer.getIp() + ":3000",
-                                "/CreateVM",
-                                Util.jsonObjectToString(jsonRequest),
-                                5
-                        ).block();
-
-                        Util.logConsole(Thread.currentThread(), "VirtualBoxController response: " + r);
-                    } catch (Exception e) {
-                        err = "VirtualBoxController response: " + Util.stackTraceToString(e);
-                        status("ERROR", task.getId(), err);
-                        next = false;
-                    }
-                }
-
-                if (!next) {
-                    if (virtualServerDTO != null) {
-                        virtualServerDTO.setStatus(-1);
-                        saveWithoutCache(virtualServerRepo, virtualServerDTO);
-                    }
-                    //Возвращаем сервер как доступный
-                    Util.logConsole(Thread.currentThread(), "ServerDTO Возвращаю статус серверу 0, потому что ошибка таски: " + err);
-                    freeServer.setStatus(0);
-                    saveWithoutCache(serverRepo, freeServer);
-                }
-
-                task.setStatus(1);
-
-            } else {
-                Util.logConsole(Thread.currentThread(), "Not found free server or router");
-                task.setResult("Not found free server or router");
-                //Нет сервера, просто вперёд передвигаем исполнение
-                task.setDateExecute(new Timestamp(System.currentTimeMillis() + 10000));
+        boolean next = true;
+        if (next) {
+            if (!parsed.containsKey("iso")) {
+                taskError(task, "Field iso undefined");
+                next = false;
             }
-        } else {
-            Util.logConsole(Thread.currentThread(), "Field iso undefined");
-            task.setResult("Field iso undefined");
         }
+
+        ServerDTO freeServer = null;
+        boolean lockServer = false;
+
+        if (next) {
+            freeServer = getFreeServerAndLock(task);
+            if (freeServer == null) {
+                taskFuture(task, "No free server");
+                next = false;
+            } else {
+                lockServer = true;
+            }
+        }
+
+        RouterDTO routerDTO = null;
+        Long idRouter = null;
+
+        if (next) {
+            idRouter = freeServer.getIdRouter();
+            if (idRouter == null) {
+                taskError(task, "Router ID is null by Server: " + freeServer.getId());
+                next = false;
+            }
+        }
+
+        if (next) {
+            routerDTO = routerRepo.findById(idRouter).orElse(null);
+            if (routerDTO == null) {
+                taskError(task, "Router not found by Server: " + freeServer.getId());
+                next = false;
+            }
+        }
+
+        Integer portRouter = null;
+        Integer portServer = null;
+        String user = null;
+        String password = null;
+
+        if (next) {
+            task.setLinkIdSrv(freeServer.getId());
+
+            portRouter = getNextPortRouter(idRouter);
+            portServer = getNextPortServer(freeServer.getId());
+
+            user = Util.genUser();
+            password = Util.genPassword();
+
+            status("INFO", task, "PortRouter: " + portRouter + "; PortServer: " + portServer);
+            if (portRouter > 22100) {
+                taskError(task, "Max port forwarding on router " + idRouter);
+                next = false;
+            }
+        }
+
+        VirtualServerDTO virtualServerDTO = null;
+
+        if (next) {
+
+            virtualServerDTO = new VirtualServerDTO();
+            virtualServerDTO.setIdSrv(freeServer.getId());
+            virtualServerDTO.setIdClient(task.getIdClient());
+            virtualServerDTO.setIso((String) parsed.get("iso"));
+            virtualServerDTO.setPortLocal(portServer);
+            virtualServerDTO.setPortRouter(portRouter);
+            virtualServerDTO.setLogin(user);
+            virtualServerDTO.setPassword(password);
+            virtualServerDTO.setIdTask(task.getId());
+
+            saveWithoutCache(virtualServerRepo, virtualServerDTO);
+
+            task.setLinkIdVSrv(virtualServerDTO.getId());
+
+            try { //VirtualBoxController
+
+                Map<String, Object> jsonRequest = new HashMap<>();
+                jsonRequest.put("id", virtualServerDTO.getId());
+                jsonRequest.put("portLocal", virtualServerDTO.getPortLocal());
+                jsonRequest.put("iso", virtualServerDTO.getIso());
+                jsonRequest.put("login", virtualServerDTO.getLogin());
+                jsonRequest.put("password", virtualServerDTO.getPassword());
+                jsonRequest.put("idTask", virtualServerDTO.getIdTask());
+                jsonRequest.put("ipRouter", routerDTO.getIp());
+                jsonRequest.put("internetPortRouter", portRouter);
+                jsonRequest.put("localPortRouter", portServer);
+                jsonRequest.put("nameRuleRouter", "RDP_" + virtualServerDTO.getIso() + virtualServerDTO.getId());
+
+                String r = greetingClient.nettyRequestPost(
+                        "http://" + freeServer.getIp() + ":" + freeServer.getPort(),
+                        "/CreateVM",
+                        Util.jsonObjectToString(jsonRequest),
+                        5
+                ).block();
+
+                status("RESPONSE", task, "VirtualBoxController response: " + r);
+            } catch (Exception e) {
+                taskFuture(task, "VirtualBoxController request exception: " + Util.stackTraceToString(e));
+                virtualServerDTO.setStatus(-2);
+                saveWithoutCache(virtualServerRepo, virtualServerDTO);
+                next = false;
+            }
+        }
+
+        if (next) {
+            taskComplete(task);
+        }
+
+        if (next == false && lockServer == true) {
+            status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
+            freeServer.setStatus(0);
+            saveWithoutCache(serverRepo, freeServer);
+        }
+
     }
 
     private int getNextPortRouter(long idRouter) {
@@ -315,7 +359,7 @@ public class TaskService {
         return ++maxPortRouter;
     }
 
-    private ServerDTO getFreeServer(TaskDTO task) {
+    private ServerDTO getFreeServerAndLock(TaskDTO task) {
         try {
             List<ServerDTO> alreadyServer = serverRepo.getAlready();
             if (alreadyServer.size() > 0) {
@@ -334,19 +378,49 @@ public class TaskService {
         srv.setIdTask(task.getId());
         srv.setLockDate(new Timestamp(System.currentTimeMillis()));
         saveWithoutCache(serverRepo, srv);
-        Util.logConsole(Thread.currentThread(), "ServerDTO Блокирую сервер lockServer");
+        status("INFO", task, "ServerDTO Блокирую сервер lockServer; idSrv: " + srv.getId());
     }
 
-    private void status(String level, Long idTask, String data) {
-        if (idTask != null) {
+    public void status(String level, TaskDTO task, String data) {
+        if (task != null) {
+            task.setResult(data);
             TaskStatusDTO status = new TaskStatusDTO();
-            status.setLevel("INFO");
+            status.setLevel(level);
             status.setData(data);
-            status.setIdTask(idTask);
-            //System.out.println(status);
+            status.setIdTask(task.getId());
             saveWithoutCache(taskStatusRepo, status);
         } else {
             Util.logConsole(Thread.currentThread(), "[" + level + "] " + data);
+        }
+    }
+
+    private void taskComplete(TaskDTO task) {
+        taskUpdate(task, 1, "Ok");
+    }
+
+    private void taskFuture(TaskDTO task, String description) {
+        task.setDateExecute(new Timestamp(System.currentTimeMillis() + 10000));
+        taskUpdate(task, 0, description);
+    }
+
+    private void taskError(TaskDTO task, String description) {
+        taskUpdate(task, -1, description);
+    }
+
+    private void taskUpdate(TaskDTO task, int status, String description) {
+        //Util.logConsole(Thread.currentThread(), "Status: " + status + "; Description: " + description);
+        task.setStatus(status);
+        switch (status) {
+            case 0:
+            case 1:
+                status("INFO", task, description);
+                break;
+            case -1:
+                status("ERROR", task, description);
+                break;
+            default:
+                status("UNDEFINED", task, description);
+                break;
         }
     }
 

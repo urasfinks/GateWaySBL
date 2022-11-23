@@ -31,11 +31,11 @@ public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
     TaskDTO lock(@Param("id_task") Long id_task);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("select t from TaskDTO t where t.status = 1")
+    @Query("select t from TaskDTO t where t.status > 0")
     List<TaskDTO> getNormal();
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("select t from TaskDTO t where t.status = -1")
+    @Query("select t from TaskDTO t where t.status < 0")
     List<TaskDTO> getBad();
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)

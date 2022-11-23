@@ -20,6 +20,7 @@ import ru.jamsys.sbl.WrapJsonToObject;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.jpa.dto.*;
 import ru.jamsys.sbl.jpa.repo.*;
+import ru.jamsys.sbl.jpa.service.TaskService;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -31,6 +32,13 @@ public class SblWebHandler {
 
     @PersistenceContext
     private EntityManager em;
+
+    @Autowired
+    public void setTaskService(TaskService taskService) {
+        this.taskService = taskService;
+    }
+
+    TaskService taskService;
 
     @Transactional
     protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
@@ -216,112 +224,107 @@ public class SblWebHandler {
     @NonNull
     public Mono<ServerResponse> patchTaskComplete(ServerRequest serverRequest) {
         return patchHandler(serverRequest, (body, jRet) -> {
-            Util.logConsole(Thread.currentThread(), "::patchTaskComplete " + body);
-
-            Map<String, Object> req = null;
-            boolean next = true;
-            if (next) {
-                try {
-                    req = new Gson().fromJson(body, Map.class);
-                } catch (Exception e) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Json parsing fail: " + body);
-                    next = false;
-                }
-            }
-
-            if (next) {
-                if (!req.containsKey("idTask")) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "idTask not found is json: " + body);
-                    next = false;
-                }
-            }
-
-            if (next) {
-                if (!req.containsKey("status")) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "status not found in json: " + body);
-                    next = false;
-                }
-            }
-            TaskDTO task = null;
-            if (next) {
-                try {
-                    Double x = (Double) req.get("idTask");
-                    task = taskRepo.findById(x.longValue()).orElse(null);
-                    if (task == null) {
-                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Not found task: " + body);
+            //Util.logConsole(Thread.currentThread(), "::patchTaskComplete " + body);
+            synchronized (SblApplication.class) {
+                Map<String, Object> req = null;
+                boolean next = true;
+                if (next) {
+                    try {
+                        req = new Gson().fromJson(body, Map.class);
+                    } catch (Exception e) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Json parsing fail: " + body);
                         next = false;
                     }
-                } catch (Exception e) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Exception get task: " + e);
-                    next = false;
                 }
-            }
 
-            if (next) {
-                if (task.getLinkIdSrv() == null) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Server by Task is null");
-                    next = false;
-                }
-            }
-            ServerDTO serverDTO = null;
-            if (next) {
-                try {
-                    serverDTO = serverRepo.findById(task.getLinkIdSrv()).orElse(null);
-                    if (serverDTO == null) {
-                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Server by Task not found");
+                if (next) {
+                    if (!req.containsKey("idTask")) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Field idTask not found in json: " + body);
                         next = false;
                     }
-                } catch (Exception e) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Exception get server: " + e);
-                    next = false;
                 }
-            }
 
-            if (next) {
-                try {
-                    Util.logConsole(Thread.currentThread(), "ServerDTO TaskComplete разблокирую сервер");
-                    serverDTO.setStatus(0); //Сам URL говорит что это конечная итарация VirtualBoxController, переводим сервер в режим готовности на обработку тасков
-                    saveWithoutCache(serverRepo, serverDTO);
-                } catch (Exception e) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Set status server exception: " + e);
-                    next = false;
-                }
-            }
-
-            if (next) {
-                if (task.getLinkIdVSrv() == null) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Task Virtual server is null");
-                    next = false;
-                }
-            }
-
-            VirtualServerDTO virtualServerDTO = null;
-            if (next) {
-                try {
-                    virtualServerDTO = virtualServerRepo.findById(task.getLinkIdVSrv()).orElse(null);
-                    if (virtualServerDTO == null) {
-                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Task VirtualServer is null");
+                if (next) {
+                    if (!req.containsKey("statusTask")) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Field statusTask not found in json: " + body);
                         next = false;
                     }
-                } catch (Exception e) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Get VirtualServer exception: " + e);
-                    next = false;
                 }
+
+                TaskDTO task = null;
+                if (next) {
+                    try {
+                        Double x = (Double) req.get("idTask");
+                        task = taskRepo.findById(x.longValue()).orElse(null);
+                        if (task == null) {
+                            jRet.set(HttpStatus.EXPECTATION_FAILED, "Not found task: " + body);
+                            next = false;
+                        }
+                    } catch (Exception e) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Exception get task: " + e);
+                        next = false;
+                    }
+                }
+
+                if (next) {
+                    if (task.getLinkIdSrv() == null) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Server by Task is null");
+                        next = false;
+                    }
+                }
+
+                ServerDTO serverDTO = null;
+                if (next) {
+                    try {
+                        serverDTO = serverRepo.findById(task.getLinkIdSrv()).orElse(null);
+                        if (serverDTO == null) {
+                            jRet.set(HttpStatus.EXPECTATION_FAILED, "Server by Task not found");
+                            next = false;
+                        }
+                    } catch (Exception e) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Exception get server: " + e);
+                        next = false;
+                    }
+                }
+
+                if (next) {
+                    try {
+                        //Util.logConsole(Thread.currentThread(), "ServerDTO TaskComplete разблокирую сервер");
+                        serverDTO.setStatus(0); //Сам URL говорит что это конечная итарация VirtualBoxController, переводим сервер в режим готовности на обработку тасков
+                        saveWithoutCache(serverRepo, serverDTO);
+                    } catch (Exception e) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Set status Server exception: " + e);
+                        next = false;
+                    }
+                }
+                if (next) {
+                    try {
+                        Double x2 = (Double) req.get("statusTask");
+                        task.setStatus(x2.intValue());
+                        if (task.getStatus() < 0) {
+                            postAnalyzeError(task); //Анализ что это была таска установки сервера, для удаления и retry
+                        }
+                        saveWithoutCache(taskRepo, task);
+                    } catch (Exception e) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Set status Task exception: " + e);
+                        next = false;
+                    }
+                }
+
+                if (task != null) {
+                    taskService.status("PATCH_ANSWER", task, jRet.toString());
+                } else {
+                    Util.logConsole(Thread.currentThread(), jRet.toString());
+                }
+
             }
 
-            if (next) {
-                try {
-                    Double x2 = (Double) req.get("status");
-                    virtualServerDTO.setStatus(x2.intValue());
-                    saveWithoutCache(virtualServerRepo, virtualServerDTO);
-                } catch (Exception e) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, "Set status VirtualServer exception: " + e);
-                    next = false;
-                }
-            }
-
-            Util.logConsole(Thread.currentThread(), "<<patchTaskComplete Next: " + next + "; jRet: " + jRet.toString());
         });
     }
+
+    private void postAnalyzeError(TaskDTO task) {
+
+    }
+
 
 }

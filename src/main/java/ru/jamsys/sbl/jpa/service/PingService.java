@@ -58,7 +58,7 @@ public class PingService {
                 boolean success = true;
                 try {
                     String x = greetingClient.nettyRequestGet(
-                            "http://" + serverDTO.getIp() + ":3000",
+                            "http://" + serverDTO.getIp() + ":" + serverDTO.getPort(),
                             "/HealthCheck",
                             5
                     ).block();

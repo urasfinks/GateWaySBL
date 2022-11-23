@@ -41,4 +41,7 @@ public class ServerDTO {
     @Column(name = "lock_date_srv", insertable = false)
     private Timestamp lockDate;
 
+    @Column(name = "port_srv", nullable = false)
+    private Integer port = 3000;
+
 }
