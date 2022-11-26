@@ -47,4 +47,7 @@ public class VirtualServerDTO {
 
     @Column(name = "id_task")
     private Long idTask;
+
+    @Column(name = "vm_status_date_v_srv", insertable = false)
+    private String vmStatusDate;
 }

@@ -9,15 +9,16 @@ import javax.persistence.*;
 public class ServerStatistic {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "sbl_seq")
-    private Long id;
-
-    private String name;
+    private Long idSrv;
 
     private Long count;
 
-    public ServerStatistic(String name, Long count) {
-        this.name = name;
+    private Integer statusVSrv;
+
+    public ServerStatistic(Long idSrv, Long count, Integer statusVSrv) {
+        this.idSrv = idSrv;
         this.count = count;
+        this.statusVSrv = statusVSrv;
     }
 
     public ServerStatistic() {

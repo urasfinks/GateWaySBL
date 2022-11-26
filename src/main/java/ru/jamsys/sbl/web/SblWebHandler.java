@@ -24,6 +24,7 @@ import ru.jamsys.sbl.jpa.service.TaskService;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
@@ -323,6 +324,32 @@ public class SblWebHandler {
     }
 
     private void postAnalyzeError(TaskDTO task) {
+        Map<String, Object> parsed = new Gson().fromJson(task.getTask(), Map.class);
+        /*
+         * 1) Создание VM
+         *    Если пришёл отбой мы должны
+         *       1.1) Создать задачу на удаление сервера
+         *       1.2) Обновить таску retry + 1
+         * */
+        if (parsed.containsKey("action")) {
+            String action = (String) parsed.get("action");
+            if (action.equals("CreateVM")) {
+                VirtualServerDTO virtualServerDTO = virtualServerRepo.findById(task.getLinkIdVSrv()).orElse(null);
+                TaskDTO removeTask = task.childTask();
+
+                Map<String, Object> dataRemoveTask = new HashMap<>();
+                dataRemoveTask.put("action", "ControlVM");
+                dataRemoveTask.put("command", "remove");
+                dataRemoveTask.put("name", virtualServerDTO.getIso() + "_" + task.getLinkIdVSrv());
+
+                removeTask.setTask(Util.jsonObjectToString(dataRemoveTask));
+
+                saveWithoutCache(taskRepo, removeTask);
+
+                task.incRetry();
+                task.setStatus(0); //Пойдём в перенакат
+            }
+        }
 
     }
 

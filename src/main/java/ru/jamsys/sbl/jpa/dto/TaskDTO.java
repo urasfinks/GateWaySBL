@@ -42,13 +42,33 @@ public class TaskDTO {
     @Column(name = "result_task", insertable = false)
     private String result;
 
-    @Column(name = "retry_task", insertable = false)
-    private Integer retry;
+    @Column(name = "retry_task")
+    private Integer retry = 0;
+
+    @Column(name = "retry_max_task")
+    private Integer retryMax = 5;
+
+    @Column(name = "parent_id_task", insertable = false)
+    private Long parentId;
 
     @Column(name = "link_id_srv", insertable = false)
     private Long linkIdSrv;
 
     @Column(name = "link_id_v_srv", insertable = false)
     private Long linkIdVSrv;
+
+    public void incRetry(){
+        if(retry == null){
+            retry = 0;
+        }
+        retry++;
+    }
+
+    public TaskDTO childTask(){
+        TaskDTO clone = new TaskDTO();
+        clone.setIdClient(idClient);
+        clone.setParentId(id);
+        return clone;
+    }
 
 }

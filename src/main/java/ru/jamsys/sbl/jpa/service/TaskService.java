@@ -17,6 +17,7 @@ import ru.jamsys.sbl.web.GreetingClient;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,19 +89,24 @@ public class TaskService {
                     Util.logConsole(Thread.currentThread(), "::execOneTask start: " + task.getId());
 
                     Integer retry = task.getRetry();
-                    try {
-                        if (retry == null || retry < 5) {
-                            task.setResult(""); //Если взяли в работу, то от предыдущего раза очистим результат
-                            execTask(task);
-                        } else {
-                            throw new Exception("Max retry");
-                        }
-                    } catch (Exception e) {
-                        task.setStatus(-1);
-                        status("ERROR", task, Util.stackTraceToString(e));
+                    if (retry == null) {
+                        retry = 0;
                     }
+                    if (retry < task.getRetryMax()) {
+                        try {
+                            task.setResult("Start exec: " + LocalDateTime.now().toString()); //Если взяли в работу, то от предыдущего раза очистим результат
+                            execTask(task);
+                        } catch (Exception e) {
+                            task.incRetry();
+                            status("ERROR", task, Util.stackTraceToString(e));
+                        }
+                    } else {
+                        task.setStatus(-1);
+                        status("ERROR", task, "Max retry");
+                    }
+
                     task.setDateUpdate(new Timestamp(System.currentTimeMillis()));
-                    TaskDTO savedTask = saveWithoutCache(taskRepo, task);
+                    saveWithoutCache(taskRepo, task);
                     ret = new MessageImpl();
                 }
             }
