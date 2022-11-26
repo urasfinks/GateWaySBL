@@ -27,4 +27,7 @@ public class TaskStatusDTO {
     @Column(name = "level_task_status")
     private String level;
 
+    @Column(name = "seq_task_status")
+    private Long seq;
+
 }

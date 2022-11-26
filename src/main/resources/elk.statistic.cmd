@@ -5,7 +5,7 @@ PUT statistic/
   "mappings" : {
     "properties" : {
       "cpu" : {
-        "type" : "long"
+        "type" : "float"
       },
       "timestamp" : {
         "type" : "date"
