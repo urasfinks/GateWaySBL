@@ -48,7 +48,7 @@ public class TaskDTO {
     @Column(name = "retry_max_task")
     private Integer retryMax = 5;
 
-    @Column(name = "parent_id_task", insertable = false)
+    @Column(name = "parent_id_task")
     private Long parentId;
 
     @Column(name = "link_id_srv", insertable = false)

@@ -313,7 +313,8 @@ public class SblWebHandler {
                 }
 
                 if (task != null) {
-                    taskService.status("PATCH_ANSWER", task, jRet.toString());
+                    taskService.status("PATCH_REQUEST_TASK_COMPLETE", task, body);
+                    taskService.status("PATCH_ANSWER_TASK_COMPLETE", task, jRet.toString());
                 } else {
                     Util.logConsole(Thread.currentThread(), jRet.toString());
                 }
@@ -345,6 +346,8 @@ public class SblWebHandler {
                 removeTask.setTask(Util.jsonObjectToString(dataRemoveTask));
 
                 saveWithoutCache(taskRepo, removeTask);
+
+                taskService.status("ROLLBACK", task, "Task failed. Remove VM: "+(virtualServerDTO.getIso() + "_" + task.getLinkIdVSrv())+" and restore task status = 0");
 
                 task.incRetry();
                 task.setStatus(0); //Пойдём в перенакат

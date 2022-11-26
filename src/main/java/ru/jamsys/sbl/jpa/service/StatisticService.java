@@ -2,8 +2,10 @@ package ru.jamsys.sbl.jpa.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import ru.jamsys.sbl.Util;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.jpa.dto.ServerDTO;
+import ru.jamsys.sbl.jpa.dto.VirtualServerDTO;
 import ru.jamsys.sbl.jpa.dto.custom.ServerStatistic;
 import ru.jamsys.sbl.jpa.repo.RouterRepo;
 import ru.jamsys.sbl.jpa.repo.ServerRepo;
@@ -65,7 +67,32 @@ public class StatisticService {
         cmpStatistic.shareStatistic("countTaskBad", taskRepo.getBad().size());
         cmpStatistic.shareStatistic("countTaskPrepare", taskRepo.getPrepare().size());
 
-        List<ServerStatistic> statistic = serverRepo.getStatistic();
+
+        Iterable<ServerDTO> allServer = serverRepo.findAll();
+        Iterable<VirtualServerDTO> allVirtualServer = virtualServerRepo.findAll();
+
+        Map<String, Integer> map = new HashMap<>();
+        for (ServerDTO serverDTO : allServer) {
+            map.put("countSrv" + serverDTO.getId() + "_3", 0);
+            map.put("countSrv" + serverDTO.getId() + "_2", 0);
+            map.put("countSrv" + serverDTO.getId() + "_1", 0);
+            map.put("countSrv" + serverDTO.getId() + "_0", 0);
+            map.put("countSrv" + serverDTO.getId() + "_-1", 0);
+            map.put("countSrv" + serverDTO.getId() + "_-2", 0);
+
+            for (VirtualServerDTO virtualServerDTO : allVirtualServer) {
+                if (virtualServerDTO.getIdSrv().equals(serverDTO.getId())) {
+                    String key = "countSrv" + serverDTO.getId() + "_" + virtualServerDTO.getStatus();
+                    map.put(key, map.get(key)+1);
+                }
+            }
+        }
+        //System.out.printf(Util.jsonObjectToString(map));
+        for (String key : map.keySet()) {
+            cmpStatistic.shareStatistic(key, map.get(key));
+        }
+
+        /*List<ServerStatistic> statistic = serverRepo.getStatistic();
         List<ServerDTO> srv = (List<ServerDTO>) serverRepo.findAll();
         Map<String, Integer> map = new HashMap<>();
         for (ServerDTO serverDTO : srv) {
@@ -86,7 +113,7 @@ public class StatisticService {
         //System.out.println(map);
         for (String key : map.keySet()) {
             cmpStatistic.shareStatistic(key, map.get(key));
-        }
+        }*/
         return null;
     }
 }

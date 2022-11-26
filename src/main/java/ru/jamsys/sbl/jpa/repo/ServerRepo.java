@@ -28,15 +28,5 @@ public interface ServerRepo extends CrudRepository<ServerDTO, Long> {
     @Query("select t from ServerDTO t where t.id = :id_server")
     ServerDTO findOneForUpdate(@Param("id_server") Long idServer);
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    /*@Query(value = "select " +
-            " new ServerStatistic(s1.name, count(vs1.id)) " +
-            "from VirtualServerDTO vs1\n" +
-            "inner join ServerDTO s1 on s1.id = vs1.idSrv\n" +
-            "where vs1.status > 0\n" +
-            "group by s1.id")*/
-    @Query(value = "select new ServerStatistic(vs1.idSrv, count(vs1.id), vs1.status)" +
-            " from VirtualServerDTO vs1\n" +
-            "group by vs1.idSrv, vs1.status")
-    List<ServerStatistic> getStatistic();
+    
 }
