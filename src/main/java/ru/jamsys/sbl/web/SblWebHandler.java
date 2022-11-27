@@ -43,13 +43,7 @@ public class SblWebHandler {
 
     @Transactional
     protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
-        //Это самое больше зло, с чем я встречался
-        T ret = crudRepository.save(entity);
-        try {
-            em.flush();
-        } catch (Exception e) {
-        }
-        return ret;
+        return SblApplication.saveWithoutCache(em, crudRepository, entity);
     }
 
     ClientRepo clientRepo;
@@ -291,6 +285,7 @@ public class SblWebHandler {
                 if (next) {
                     try {
                         //Util.logConsole(Thread.currentThread(), "ServerDTO TaskComplete разблокирую сервер");
+                        taskService.status("INFO", task, "ServerDTO Возвращаю статус серверу 0, успех");
                         serverDTO.setStatus(0); //Сам URL говорит что это конечная итарация VirtualBoxController, переводим сервер в режим готовности на обработку тасков
                         saveWithoutCache(serverRepo, serverDTO);
                     } catch (Exception e) {

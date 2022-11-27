@@ -1,8 +1,11 @@
 package ru.jamsys.sbl;
 
+import org.hibernate.CacheMode;
+import org.hibernate.Session;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.data.repository.CrudRepository;
 import ru.jamsys.sbl.component.CmpService;
 import ru.jamsys.sbl.component.CmpServiceStabilizer;
 import ru.jamsys.sbl.component.CmpStatistic;
@@ -11,6 +14,9 @@ import ru.jamsys.sbl.jpa.service.PingService;
 import ru.jamsys.sbl.jpa.service.StatisticService;
 import ru.jamsys.sbl.jpa.service.TaskService;
 import ru.jamsys.sbl.service.SblService;
+
+import javax.persistence.EntityManager;
+import javax.persistence.FlushModeType;
 
 @SpringBootApplication
 public class SblApplication {
@@ -51,6 +57,23 @@ public class SblApplication {
         schedulerStatistic.setTpsInputMax(1);
         schedulerStatistic.setDebug(false);
 
+    }
+
+    public static <T> T saveWithoutCache(EntityManager em, CrudRepository<T, Long> crudRepository, T entity) {
+        //Это самое больше зло, с чем я встречался
+        T ret = crudRepository.save(entity);
+        try {
+            em.setFlushMode(FlushModeType.COMMIT);
+            Session session = em.unwrap(Session.class);
+            session.setCacheMode(CacheMode.IGNORE);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {
+            em.flush();
+        } catch (Exception e) {
+        }
+        return ret;
     }
 
 }

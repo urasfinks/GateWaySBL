@@ -15,6 +15,7 @@ import ru.jamsys.sbl.message.MessageImpl;
 import ru.jamsys.sbl.web.GreetingClient;
 
 import javax.persistence.EntityManager;
+import javax.persistence.FlushModeType;
 import javax.persistence.PersistenceContext;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -30,13 +31,7 @@ public class TaskService {
 
     @Transactional
     protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
-        //Это самое больше зло, с чем я встречался
-        T ret = crudRepository.save(entity);
-        try {
-            em.flush();
-        } catch (Exception e) {
-        }
-        return ret;
+        return SblApplication.saveWithoutCache(em, crudRepository, entity);
     }
 
     GreetingClient greetingClient;

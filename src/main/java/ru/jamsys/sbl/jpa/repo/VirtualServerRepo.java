@@ -12,8 +12,6 @@ import ru.jamsys.sbl.jpa.dto.VirtualServerDTO;
 import java.util.List;
 
 @Repository
-@Transactional
-@Immutable
 public interface VirtualServerRepo extends CrudRepository<VirtualServerDTO, Long> {
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)

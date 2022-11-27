@@ -6,7 +6,5 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.jpa.dto.ClientDTO;
 @Repository
-@Transactional
-@Immutable
 public interface ClientRepo extends CrudRepository<ClientDTO, Long> {
 }

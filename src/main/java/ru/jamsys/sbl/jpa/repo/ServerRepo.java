@@ -15,8 +15,6 @@ import javax.persistence.LockModeType;
 import java.util.List;
 
 @Repository
-@Transactional
-@Immutable
 public interface ServerRepo extends CrudRepository<ServerDTO, Long> {
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -28,5 +26,4 @@ public interface ServerRepo extends CrudRepository<ServerDTO, Long> {
     @Query("select t from ServerDTO t where t.id = :id_server")
     ServerDTO findOneForUpdate(@Param("id_server") Long idServer);
 
-    
 }

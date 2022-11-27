@@ -7,7 +7,5 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.jpa.dto.TaskStatusDTO;
 
 @Repository
-@Transactional
-@Immutable
 public interface TaskStatusRepo extends CrudRepository<TaskStatusDTO, Long> {
 }

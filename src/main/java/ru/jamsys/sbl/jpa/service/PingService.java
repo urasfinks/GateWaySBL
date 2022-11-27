@@ -37,13 +37,7 @@ public class PingService {
 
     @Transactional
     protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
-        //Это самое больше зло, с чем я встречался
-        T ret = crudRepository.save(entity);
-        try {
-            em.flush();
-        } catch (Exception e) {
-        }
-        return ret;
+        return SblApplication.saveWithoutCache(em, crudRepository, entity);
     }
 
     @Autowired
