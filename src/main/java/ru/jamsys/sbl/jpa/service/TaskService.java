@@ -184,6 +184,7 @@ public class TaskService {
         }
 
         boolean lockServer = false;
+        boolean serverBusy = false;
 
         if (next) {
             lockServer(serverDTO, task);
@@ -208,6 +209,7 @@ public class TaskService {
                 if (parsedResp.containsKey("status") && parsedResp.get("status").equals("OK")) {
 
                 } else {
+                    serverBusy = true;
                     throw new Exception("Status response not OK");
                 }
             } catch (Exception e) {
@@ -227,7 +229,7 @@ public class TaskService {
             if (next == false && lockServer == true) {
                 status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
                 Util.logConsole(Thread.currentThread(), "Set status = 0; idVSrv = " + serverDTO.getId() + "Task: "+task.toString());
-                serverDTO.setStatus(0);
+                serverDTO.setStatus(serverBusy ? 1 : 0);
                 saveWithoutCache(serverRepo, serverDTO);
             }
         }
@@ -297,6 +299,7 @@ public class TaskService {
         }
 
         VirtualServerDTO virtualServerDTO = null;
+        boolean serverBusy = false;
 
         if (next) {
 
@@ -313,6 +316,7 @@ public class TaskService {
             saveWithoutCache(virtualServerRepo, virtualServerDTO);
 
             task.setLinkIdVSrv(virtualServerDTO.getId());
+
 
             try { //VirtualBoxController
 
@@ -341,6 +345,7 @@ public class TaskService {
                 if (parsedResp.containsKey("status") && parsedResp.get("status").equals("OK")) {
 
                 } else {
+                    serverBusy = true;
                     throw new Exception("Status response not OK");
                 }
             } catch (Exception e) {
@@ -359,7 +364,7 @@ public class TaskService {
         if (next == false && lockServer == true) {
             status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
             Util.logConsole(Thread.currentThread(), "Set status = 0; idVSrv = " + freeServer.getId() + "Task: "+task.toString());
-            freeServer.setStatus(0);
+            freeServer.setStatus(serverBusy ? 1: 0);
             saveWithoutCache(serverRepo, freeServer);
         }
 
