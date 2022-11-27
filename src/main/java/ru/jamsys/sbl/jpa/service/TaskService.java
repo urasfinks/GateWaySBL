@@ -212,8 +212,8 @@ public class TaskService {
 
             if (next) {
                 if (parsed.get("command").equals("remove")) {
-                    virtualServerDTO.setStatus(-2);
-                    saveWithoutCache(virtualServerRepo, virtualServerDTO);
+                    //virtualServerDTO.setStatus(-2); //Этот статус автоматом проставится PingService как сервера не окажется на машине
+                    //saveWithoutCache(virtualServerRepo, virtualServerDTO);
                 }
                 taskComplete(task);
             }
@@ -331,7 +331,8 @@ public class TaskService {
                 status("RESPONSE", task, "VirtualBoxController response: " + r);
             } catch (Exception e) {
                 taskFuture(task, "VirtualBoxController request exception: " + Util.stackTraceToString(e));
-                virtualServerDTO.setStatus(-2);
+                virtualServerDTO.setStatus(-2); //Ошибка создания сервера, просто пометим его как удалённый, но на самом деле, сервер просто мог не дособраться, но будет работать
+                virtualServerDTO.setResponse("При создании сервера произошла ошибка, будет создаваться новый сервер");
                 saveWithoutCache(virtualServerRepo, virtualServerDTO);
                 next = false;
             }
