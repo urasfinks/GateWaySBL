@@ -285,7 +285,7 @@ public class SblWebHandler {
                 if (next) {
                     try {
                         //Util.logConsole(Thread.currentThread(), "ServerDTO TaskComplete разблокирую сервер");
-                        taskService.status("INFO", task, "ServerDTO Возвращаю статус серверу 0, успех");
+                        taskService.status("INFO", task, "ServerDTO Возвращаю статус серверу 0, так как сервер закончил задачу");
                         serverDTO.setStatus(0); //Сам URL говорит что это конечная итарация VirtualBoxController, переводим сервер в режим готовности на обработку тасков
                         saveWithoutCache(serverRepo, serverDTO);
                     } catch (Exception e) {

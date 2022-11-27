@@ -89,9 +89,10 @@ public class TaskService {
                     }
                     if (retry < task.getRetryMax()) {
                         try {
-                            task.setResult("Start exec: " + LocalDateTime.now().toString()); //Если взяли в работу, то от предыдущего раза очистим результат
+                            task.setResult("Start exec: " + LocalDateTime.now()); //Если взяли в работу, то от предыдущего раза очистим результат
                             execTask(task);
                         } catch (Exception e) {
+                            e.printStackTrace();
                             task.incRetry();
                             status("ERROR", task, Util.stackTraceToString(e));
                         }
