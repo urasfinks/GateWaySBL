@@ -204,6 +204,12 @@ public class TaskService {
                         5
                 ).block();
                 status("RESPONSE", task, "VirtualBoxController response: " + r);
+                Map<String, Object> parsedResp = new Gson().fromJson(r, Map.class);
+                if (parsedResp.containsKey("status") && parsedResp.get("status").equals("OK")) {
+
+                } else {
+                    throw new Exception("Status response not OK");
+                }
             } catch (Exception e) {
                 //Да, сломались, попробуем ещё
                 taskFuture(task, "VirtualBoxController request exception: " + Util.stackTraceToString(e));
@@ -329,6 +335,13 @@ public class TaskService {
                 ).block();
 
                 status("RESPONSE", task, "VirtualBoxController response: " + r);
+
+                Map<String, Object> parsedResp = new Gson().fromJson(r, Map.class);
+                if (parsedResp.containsKey("status") && parsedResp.get("status").equals("OK")) {
+
+                } else {
+                    throw new Exception("Status response not OK");
+                }
             } catch (Exception e) {
                 taskFuture(task, "VirtualBoxController request exception: " + Util.stackTraceToString(e));
                 virtualServerDTO.setStatus(-2); //Ошибка создания сервера, просто пометим его как удалённый, но на самом деле, сервер просто мог не дособраться, но будет работать
