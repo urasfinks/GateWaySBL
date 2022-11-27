@@ -226,6 +226,7 @@ public class TaskService {
 
             if (next == false && lockServer == true) {
                 status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
+                Util.logConsole(Thread.currentThread(), "Set status = 0; idVSrv = " + serverDTO.getId() + "Task: "+task.toString());
                 serverDTO.setStatus(0);
                 saveWithoutCache(serverRepo, serverDTO);
             }
@@ -357,6 +358,7 @@ public class TaskService {
 
         if (next == false && lockServer == true) {
             status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
+            Util.logConsole(Thread.currentThread(), "Set status = 0; idVSrv = " + freeServer.getId() + "Task: "+task.toString());
             freeServer.setStatus(0);
             saveWithoutCache(serverRepo, freeServer);
         }

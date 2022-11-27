@@ -286,6 +286,7 @@ public class SblWebHandler {
                     try {
                         //Util.logConsole(Thread.currentThread(), "ServerDTO TaskComplete разблокирую сервер");
                         taskService.status("INFO", task, "ServerDTO Возвращаю статус серверу 0, так как сервер закончил задачу");
+                        Util.logConsole(Thread.currentThread(), "Set status = 0; idVSrv = " + serverDTO.getId() + "Task: " + task.toString());
                         serverDTO.setStatus(0); //Сам URL говорит что это конечная итарация VirtualBoxController, переводим сервер в режим готовности на обработку тасков
                         saveWithoutCache(serverRepo, serverDTO);
                     } catch (Exception e) {
@@ -342,7 +343,7 @@ public class SblWebHandler {
 
                 saveWithoutCache(taskRepo, removeTask);
 
-                taskService.status("ROLLBACK", task, "Task failed. Remove VM: "+(virtualServerDTO.getIso() + "_" + task.getLinkIdVSrv())+" and restore task status = 0");
+                taskService.status("ROLLBACK", task, "Task failed. Remove VM: " + (virtualServerDTO.getIso() + "_" + task.getLinkIdVSrv()) + " and restore task status = 0");
 
                 task.incRetry();
                 task.setStatus(0); //Пойдём в перенакат
