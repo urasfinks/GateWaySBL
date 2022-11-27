@@ -43,17 +43,17 @@ public class SblApplication {
 
     public static void t1() {
         TaskService taskService = context.getBean(TaskService.class);
-        SblService schedulerTask = context.getBean(CmpService.class).instance("SchedulerTask", 1, 1, 60, 5000, taskService::exec, null);
+        SblService schedulerTask = context.getBean(CmpService.class).instance("SchedulerTask", 1, 1, 60, 5000, () -> taskService.exec(), null);
         schedulerTask.setTpsInputMax(1);
         schedulerTask.setDebug(false);
 
         PingService pingService = context.getBean(PingService.class);
-        SblService schedulerPing = context.getBean(CmpService.class).instance("SchedulerPing", 1, 1, 60, 3000, pingService::exec, null);
+        SblService schedulerPing = context.getBean(CmpService.class).instance("SchedulerPing", 1, 1, 60, 3000, () -> pingService.exec(), null);
         schedulerPing.setTpsInputMax(1);
         schedulerPing.setDebug(false);
 
         StatisticService statisticService = context.getBean(StatisticService.class);
-        SblService schedulerStatistic = context.getBean(CmpService.class).instance("SchedulerStatistic", 1, 1, 60, 1000, statisticService::exec, null);
+        SblService schedulerStatistic = context.getBean(CmpService.class).instance("SchedulerStatistic", 1, 1, 60, 1000, () -> statisticService.exec(), null);
         schedulerStatistic.setTpsInputMax(1);
         schedulerStatistic.setDebug(false);
 

@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.SblApplication;
 import ru.jamsys.sbl.jpa.dto.ServerDTO;
@@ -35,7 +36,6 @@ public class PingService {
     @PersistenceContext
     private EntityManager em;
 
-    @Transactional
     protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
         return SblApplication.saveWithoutCache(em, crudRepository, entity);
     }
@@ -54,8 +54,7 @@ public class PingService {
 
     GreetingClient greetingClient;
 
-    @Transactional
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public Message exec() {
         Message ret = null;
         synchronized (SblApplication.class) {
@@ -105,6 +104,7 @@ public class PingService {
                         success = false;
                     } else {
                         List<Map<String, Object>> listVM = (List<Map<String, Object>>) parse.get("data");
+                        Iterable<VirtualServerDTO> listVirtualServer = virtualServerRepo.findAll();
                         for (Map<String, Object> vm : listVM) {
                             try {
                                 String nameVM = (String) vm.get("name");
@@ -115,11 +115,13 @@ public class PingService {
                                         Long idVSrv = Long.parseLong(split[1]);
                                         marked.add(idVSrv);
                                         if (idVSrv != null) {
-                                            VirtualServerDTO virtualServerDTO = virtualServerRepo.findById(idVSrv).orElse(null);
-                                            if (virtualServerDTO != null) {
-                                                virtualServerDTO.setStatus(statusVM);
-                                                virtualServerDTO.setVmStatusDate((String) vm.get("date"));
-                                                saveWithoutCache(virtualServerRepo, virtualServerDTO);
+                                            for (VirtualServerDTO virtualServerDTO : listVirtualServer) {
+                                                if (virtualServerDTO.getId().equals(idVSrv)) {
+                                                    virtualServerDTO.setStatus(statusVM);
+                                                    virtualServerDTO.setVmStatusDate((String) vm.get("date"));
+                                                    saveWithoutCache(virtualServerRepo, virtualServerDTO);
+                                                    break;
+                                                }
                                             }
                                         }
                                     }

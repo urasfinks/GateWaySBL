@@ -120,12 +120,16 @@ public class Util {
     }
 
     public static String genPassword() {
+
+        /*
+        * net user  168e4&Zx /add  Если пароль содержит амперсанд - то при добавлении через консоль считается что это команда и всё падает
+        * */
         int length = 8;
 
         final char[] lowercase = "abcdefghijklmnopqrstuvwxyz".toCharArray();
         final char[] uppercase = "ABCDEFGJKLMNPRSTUVWXYZ".toCharArray();
         final char[] numbers = "0123456789".toCharArray();
-        final char[] symbols = "^$?!@#%&".toCharArray();
+        final char[] symbols = "^?!@#%".toCharArray();
         final char[] allAllowed = "abcdefghijklmnopqrstuvwxyzABCDEFGJKLMNPRSTUVWXYZ0123456789^?!@#%".toCharArray();
 
         //Use cryptographically secure random number generator
@@ -142,7 +146,7 @@ public class Util {
         password.insert(random.nextInt(password.length()), uppercase[random.nextInt(uppercase.length)]);
         password.insert(random.nextInt(password.length()), numbers[random.nextInt(numbers.length)]);
         password.insert(random.nextInt(password.length()), symbols[random.nextInt(symbols.length)]);
-        return password.toString();
+        return "p" + password.toString();
     }
 
     public static String stackTraceToString(Throwable e) {

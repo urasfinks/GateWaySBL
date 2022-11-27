@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -41,7 +42,6 @@ public class SblWebHandler {
 
     TaskService taskService;
 
-    @Transactional
     protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
         return SblApplication.saveWithoutCache(em, crudRepository, entity);
     }
@@ -192,6 +192,7 @@ public class SblWebHandler {
         return postHandler(serverRequest, taskStatusRepo, TaskStatusDTO.class);
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Mono<ServerResponse> patchHandler(ServerRequest serverRequest, BiConsumer<String, JsonResponse> consumer) {
         cmpStatistic.incShareStatistic("WebRequest");
         Mono<String> bodyData = serverRequest.bodyToMono(String.class);
@@ -216,6 +217,7 @@ public class SblWebHandler {
         });
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @NonNull
     public Mono<ServerResponse> patchTaskComplete(ServerRequest serverRequest) {
         return patchHandler(serverRequest, (body, jRet) -> {

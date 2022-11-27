@@ -24,7 +24,6 @@ public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
     //@Lock(LockModeType.PESSIMISTIC_WRITE)
     //@Query("select t.id from TaskDTO t where t.id = :id_task")
     //@Modifying(flushAutomatically = true, clearAutomatically = true)
-    //@Transactional
     @Query(nativeQuery = true, value = "select * from task where id_task = :id_task for update OF task SKIP LOCKED")
     TaskDTO lock(@Param("id_task") Long id_task);
 

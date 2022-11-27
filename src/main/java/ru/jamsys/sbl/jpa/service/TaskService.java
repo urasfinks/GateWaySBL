@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.SblApplication;
 import ru.jamsys.sbl.Util;
@@ -29,7 +30,6 @@ public class TaskService {
     @PersistenceContext
     private EntityManager em;
 
-    @Transactional
     protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
         return SblApplication.saveWithoutCache(em, crudRepository, entity);
     }
@@ -71,8 +71,7 @@ public class TaskService {
         this.virtualServerRepo = virtualServerRepo;
     }
 
-    @Transactional
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Message exec() {
         Message ret = null;
         synchronized (SblApplication.class) {
@@ -111,7 +110,6 @@ public class TaskService {
     }
 
     @SuppressWarnings("unchecked")
-    @Transactional
     public void execTask(TaskDTO task) {
         Map<String, Object> parsed = new Gson().fromJson(task.getTask(), Map.class);
         if (parsed.get("action") != null) {
@@ -127,7 +125,6 @@ public class TaskService {
         }
     }
 
-    @Transactional
     public void actionControlVM(TaskDTO task, Map<String, Object> parsed) {
         boolean next = true;
 
@@ -228,14 +225,14 @@ public class TaskService {
 
             if (next == false && lockServer == true) {
                 status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
-                Util.logConsole(Thread.currentThread(), "Set status = 0; idVSrv = " + serverDTO.getId() + "Task: "+task.toString());
                 serverDTO.setStatus(serverBusy ? 1 : 0);
+                Util.logConsole(Thread.currentThread(), "Set status = " + serverDTO.getStatus() + "; idVSrv = " + serverDTO.getId() + "Task: " + task.toString());
+
                 saveWithoutCache(serverRepo, serverDTO);
             }
         }
     }
 
-    @Transactional
     public void actionCreateVM(TaskDTO task, Map<String, Object> parsed) {
         boolean next = true;
         if (next) {
@@ -363,8 +360,9 @@ public class TaskService {
 
         if (next == false && lockServer == true) {
             status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
-            Util.logConsole(Thread.currentThread(), "Set status = 0; idVSrv = " + freeServer.getId() + "Task: "+task.toString());
-            freeServer.setStatus(serverBusy ? 1: 0);
+            freeServer.setStatus(serverBusy ? 1 : 0);
+            Util.logConsole(Thread.currentThread(), "Set status = " + freeServer.getStatus() + "; idVSrv = " + freeServer.getId() + "Task: " + task.toString());
+
             saveWithoutCache(serverRepo, freeServer);
         }
 
