@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.SblApplication;
 import ru.jamsys.sbl.Util;
@@ -15,6 +16,7 @@ import ru.jamsys.sbl.message.MessageImpl;
 import ru.jamsys.sbl.web.GreetingClient;
 
 import javax.persistence.EntityManager;
+import javax.persistence.FlushModeType;
 import javax.persistence.PersistenceContext;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -28,15 +30,8 @@ public class TaskService {
     @PersistenceContext
     private EntityManager em;
 
-    @Transactional
     protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
-        //Это самое больше зло, с чем я встречался
-        T ret = crudRepository.save(entity);
-        try {
-            em.flush();
-        } catch (Exception e) {
-        }
-        return ret;
+        return SblApplication.saveWithoutCache(em, crudRepository, entity);
     }
 
     GreetingClient greetingClient;
@@ -76,8 +71,7 @@ public class TaskService {
         this.virtualServerRepo = virtualServerRepo;
     }
 
-    @Transactional
-    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Message exec() {
         Message ret = null;
         synchronized (SblApplication.class) {
@@ -94,9 +88,10 @@ public class TaskService {
                     }
                     if (retry < task.getRetryMax()) {
                         try {
-                            task.setResult("Start exec: " + LocalDateTime.now().toString()); //Если взяли в работу, то от предыдущего раза очистим результат
+                            task.setResult("Start exec: " + LocalDateTime.now()); //Если взяли в работу, то от предыдущего раза очистим результат
                             execTask(task);
                         } catch (Exception e) {
+                            e.printStackTrace();
                             task.incRetry();
                             status("ERROR", task, Util.stackTraceToString(e));
                         }
@@ -115,7 +110,6 @@ public class TaskService {
     }
 
     @SuppressWarnings("unchecked")
-    @Transactional
     public void execTask(TaskDTO task) {
         Map<String, Object> parsed = new Gson().fromJson(task.getTask(), Map.class);
         if (parsed.get("action") != null) {
@@ -131,7 +125,6 @@ public class TaskService {
         }
     }
 
-    @Transactional
     public void actionControlVM(TaskDTO task, Map<String, Object> parsed) {
         boolean next = true;
 
@@ -188,6 +181,7 @@ public class TaskService {
         }
 
         boolean lockServer = false;
+        boolean serverBusy = false;
 
         if (next) {
             lockServer(serverDTO, task);
@@ -208,6 +202,13 @@ public class TaskService {
                         5
                 ).block();
                 status("RESPONSE", task, "VirtualBoxController response: " + r);
+                Map<String, Object> parsedResp = new Gson().fromJson(r, Map.class);
+                if (parsedResp.containsKey("status") && parsedResp.get("status").equals("OK")) {
+
+                } else {
+                    serverBusy = true;
+                    throw new Exception("Status response not OK");
+                }
             } catch (Exception e) {
                 //Да, сломались, попробуем ещё
                 taskFuture(task, "VirtualBoxController request exception: " + Util.stackTraceToString(e));
@@ -216,21 +217,22 @@ public class TaskService {
 
             if (next) {
                 if (parsed.get("command").equals("remove")) {
-                    virtualServerDTO.setStatus(-2);
-                    saveWithoutCache(virtualServerRepo, virtualServerDTO);
+                    //virtualServerDTO.setStatus(-2); //Этот статус автоматом проставится PingService как сервера не окажется на машине
+                    //saveWithoutCache(virtualServerRepo, virtualServerDTO);
                 }
                 taskComplete(task);
             }
 
             if (next == false && lockServer == true) {
                 status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
-                serverDTO.setStatus(0);
+                serverDTO.setStatus(serverBusy ? 1 : 0);
+                Util.logConsole(Thread.currentThread(), "Set status = " + serverDTO.getStatus() + "; idVSrv = " + serverDTO.getId() + "Task: " + task.toString());
+
                 saveWithoutCache(serverRepo, serverDTO);
             }
         }
     }
 
-    @Transactional
     public void actionCreateVM(TaskDTO task, Map<String, Object> parsed) {
         boolean next = true;
         if (next) {
@@ -294,6 +296,7 @@ public class TaskService {
         }
 
         VirtualServerDTO virtualServerDTO = null;
+        boolean serverBusy = false;
 
         if (next) {
 
@@ -310,6 +313,7 @@ public class TaskService {
             saveWithoutCache(virtualServerRepo, virtualServerDTO);
 
             task.setLinkIdVSrv(virtualServerDTO.getId());
+
 
             try { //VirtualBoxController
 
@@ -333,9 +337,18 @@ public class TaskService {
                 ).block();
 
                 status("RESPONSE", task, "VirtualBoxController response: " + r);
+
+                Map<String, Object> parsedResp = new Gson().fromJson(r, Map.class);
+                if (parsedResp.containsKey("status") && parsedResp.get("status").equals("OK")) {
+
+                } else {
+                    serverBusy = true;
+                    throw new Exception("Status response not OK");
+                }
             } catch (Exception e) {
                 taskFuture(task, "VirtualBoxController request exception: " + Util.stackTraceToString(e));
-                virtualServerDTO.setStatus(-2);
+                virtualServerDTO.setStatus(-2); //Ошибка создания сервера, просто пометим его как удалённый, но на самом деле, сервер просто мог не дособраться, но будет работать
+                virtualServerDTO.setResponse("При создании сервера произошла ошибка, будет создаваться новый сервер");
                 saveWithoutCache(virtualServerRepo, virtualServerDTO);
                 next = false;
             }
@@ -347,7 +360,9 @@ public class TaskService {
 
         if (next == false && lockServer == true) {
             status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
-            freeServer.setStatus(0);
+            freeServer.setStatus(serverBusy ? 1 : 0);
+            Util.logConsole(Thread.currentThread(), "Set status = " + freeServer.getStatus() + "; idVSrv = " + freeServer.getId() + "Task: " + task.toString());
+
             saveWithoutCache(serverRepo, freeServer);
         }
 

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -41,15 +42,8 @@ public class SblWebHandler {
 
     TaskService taskService;
 
-    @Transactional
     protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
-        //Это самое больше зло, с чем я встречался
-        T ret = crudRepository.save(entity);
-        try {
-            em.flush();
-        } catch (Exception e) {
-        }
-        return ret;
+        return SblApplication.saveWithoutCache(em, crudRepository, entity);
     }
 
     ClientRepo clientRepo;
@@ -203,6 +197,7 @@ public class SblWebHandler {
         return postHandler(serverRequest, taskStatusRepo, TaskStatusDTO.class);
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Mono<ServerResponse> patchHandler(ServerRequest serverRequest, BiConsumer<String, JsonResponse> consumer) {
         cmpStatistic.incShareStatistic("WebRequest");
         Mono<String> bodyData = serverRequest.bodyToMono(String.class);
@@ -227,6 +222,7 @@ public class SblWebHandler {
         });
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     @NonNull
     public Mono<ServerResponse> patchTaskComplete(ServerRequest serverRequest) {
         return patchHandler(serverRequest, (body, jRet) -> {
@@ -296,6 +292,8 @@ public class SblWebHandler {
                 if (next) {
                     try {
                         //Util.logConsole(Thread.currentThread(), "ServerDTO TaskComplete разблокирую сервер");
+                        taskService.status("INFO", task, "ServerDTO Возвращаю статус серверу 0, так как сервер закончил задачу");
+                        Util.logConsole(Thread.currentThread(), "Set status = 0; idVSrv = " + serverDTO.getId() + "Task: " + task);
                         serverDTO.setStatus(0); //Сам URL говорит что это конечная итарация VirtualBoxController, переводим сервер в режим готовности на обработку тасков
                         saveWithoutCache(serverRepo, serverDTO);
                     } catch (Exception e) {
@@ -352,7 +350,7 @@ public class SblWebHandler {
 
                 saveWithoutCache(taskRepo, removeTask);
 
-                taskService.status("ROLLBACK", task, "Task failed. Remove VM: "+(virtualServerDTO.getIso() + "_" + task.getLinkIdVSrv())+" and restore task status = 0");
+                taskService.status("ROLLBACK", task, "Task failed. Remove VM: " + (virtualServerDTO.getIso() + "_" + task.getLinkIdVSrv()) + " and restore task status = 0");
 
                 task.incRetry();
                 task.setStatus(0); //Пойдём в перенакат

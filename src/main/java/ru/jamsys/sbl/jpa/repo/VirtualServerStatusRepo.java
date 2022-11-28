@@ -7,7 +7,5 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.jpa.dto.VirtualServerStatusDTO;
 
 @Repository
-@Transactional
-@Immutable
 public interface VirtualServerStatusRepo extends CrudRepository<VirtualServerStatusDTO, Long> {
 }

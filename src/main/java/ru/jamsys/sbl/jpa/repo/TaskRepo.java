@@ -13,8 +13,6 @@ import java.sql.Timestamp;
 import java.util.List;
 
 @Repository
-@Transactional
-@Immutable
 public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
 //    @Query("from TaskDTO t where t.dateExecute < :time and t.status = 0")
 //    List<TaskDTO> getExecute(@Param("time") Timestamp time);
@@ -26,7 +24,6 @@ public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
     //@Lock(LockModeType.PESSIMISTIC_WRITE)
     //@Query("select t.id from TaskDTO t where t.id = :id_task")
     //@Modifying(flushAutomatically = true, clearAutomatically = true)
-    //@Transactional
     @Query(nativeQuery = true, value = "select * from task where id_task = :id_task for update OF task SKIP LOCKED")
     TaskDTO lock(@Param("id_task") Long id_task);
 

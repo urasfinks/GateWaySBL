@@ -6,7 +6,5 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.jpa.dto.RouterDTO;
 @Repository
-@Transactional
-@Immutable
 public interface RouterRepo extends CrudRepository<RouterDTO, Long> {
 }
