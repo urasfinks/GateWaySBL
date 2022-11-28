@@ -309,6 +309,7 @@ public class TaskService {
             virtualServerDTO.setLogin(user);
             virtualServerDTO.setPassword(password);
             virtualServerDTO.setIdTask(task.getId());
+            virtualServerDTO.setRdpInfo(freeServer.getIp() + ":" + portRouter);
 
             saveWithoutCache(virtualServerRepo, virtualServerDTO);
 

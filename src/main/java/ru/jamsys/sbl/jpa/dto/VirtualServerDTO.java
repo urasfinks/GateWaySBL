@@ -50,4 +50,7 @@ public class VirtualServerDTO {
 
     @Column(name = "vm_status_date_v_srv", insertable = false)
     private String vmStatusDate;
+
+    @Column(name = "rdp_info_v_srv")
+    private String rdpInfo;
 }
