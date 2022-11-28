@@ -107,6 +107,11 @@ public class SblWebHandler {
     }
 
     @NonNull
+    public Mono<ServerResponse> getApi(ServerRequest serverRequest) {
+        return ServerResponse.ok().body(BodyInserters.fromValue("Hello world"));
+    }
+
+    @NonNull
     public Mono<ServerResponse> getServer(ServerRequest serverRequest) {
         return ServerResponse.ok().body(Flux.fromIterable(serverRepo.findAll()), ServerDTO.class);
     }

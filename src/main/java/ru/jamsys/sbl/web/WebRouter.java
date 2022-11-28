@@ -21,6 +21,7 @@ public class WebRouter {
         * PATCH - Частичная замена свойств, но также идемпотентная
         * */
         return RouterFunctions.route()
+                .GET("/api", sblWebHandler::getApi)
                 .GET("/Client", sblWebHandler::getClient)
                 .GET("/Server", sblWebHandler::getServer)
                 .GET("/VirtualServer", sblWebHandler::getVirtualServer)
