@@ -21,14 +21,16 @@ public class WebRouter {
         * PATCH - Частичная замена свойств, но также идемпотентная
         * */
         return RouterFunctions.route()
-                .GET("/api", sblWebHandler::getApi)
                 .GET("/Client", sblWebHandler::getClient)
                 .GET("/Server", sblWebHandler::getServer)
                 .GET("/VirtualServer", sblWebHandler::getVirtualServer)
                 .GET("/VirtualServerStatus", sblWebHandler::getVirtualServerStatus)
                 .GET("/TaskStatus", sblWebHandler::getTaskStatus)
                 .GET("/healthCheck", accept(MediaType.TEXT_PLAIN), sblWebHandler::healthCheck)
+                .GET("/TaskByIdClient/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getTaskByIdClient)
+                .GET("/VirtualServerByIdClient/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getVirtualServerByIdClient)
 
+                .POST("/api", sblWebHandler::getApi)
                 .POST("/Client", accept(MediaType.TEXT_PLAIN), sblWebHandler::postClient)
                 .POST("/Server", accept(MediaType.TEXT_PLAIN), sblWebHandler::postServer)
                 .POST("/Task", accept(MediaType.TEXT_PLAIN), sblWebHandler::postTask)

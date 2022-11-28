@@ -25,6 +25,7 @@ import ru.jamsys.sbl.jpa.service.TaskService;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.sound.midi.Soundbank;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -102,7 +103,28 @@ public class SblWebHandler {
 
     @NonNull
     public Mono<ServerResponse> getApi(ServerRequest serverRequest) {
-        return ServerResponse.ok().body(BodyInserters.fromValue("Hello world"));
+        cmpStatistic.incShareStatistic("WebRequestApi");
+        Mono<String> bodyData = serverRequest.bodyToMono(String.class);
+
+        return bodyData.flatMap(body -> {
+            System.out.println("Request: " + body);
+            JsonResponse jRet = new JsonResponse();
+            if (body != null && !body.isEmpty()) {
+                try {
+                    jRet.addData("idClient", 453);
+                } catch (Exception e) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, e.toString());
+                    e.printStackTrace();
+                }
+            } else {
+                jRet.set(HttpStatus.EXPECTATION_FAILED, "Empty request");
+            }
+            if (!jRet.status.equals(HttpStatus.OK)) {
+                cmpStatistic.incShareStatistic("WebError");
+            }
+            System.out.println("Response: " + jRet.toString());
+            return ServerResponse.status(jRet.status).body(BodyInserters.fromValue(jRet.toString()));
+        });
     }
 
     @NonNull
@@ -113,6 +135,18 @@ public class SblWebHandler {
     @NonNull
     public Mono<ServerResponse> getVirtualServer(ServerRequest serverRequest) {
         return ServerResponse.ok().body(Flux.fromIterable(virtualServerRepo.findAll()), VirtualServerDTO.class);
+    }
+
+    @NonNull
+    public Mono<ServerResponse> getTaskByIdClient(ServerRequest serverRequest) {
+        Long idClient = Long.parseLong(serverRequest.pathVariable("id"));
+        return ServerResponse.ok().body(Flux.fromIterable(taskRepo.findAllByIdClient(idClient)), TaskDTO.class);
+    }
+
+    @NonNull
+    public Mono<ServerResponse> getVirtualServerByIdClient(ServerRequest serverRequest) {
+        Long idClient = Long.parseLong(serverRequest.pathVariable("id"));
+        return ServerResponse.ok().body(Flux.fromIterable(virtualServerRepo.findAllByIdClient(idClient)), VirtualServerDTO.class);
     }
 
     @NonNull

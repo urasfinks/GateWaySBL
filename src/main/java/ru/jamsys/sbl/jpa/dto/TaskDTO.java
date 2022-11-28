@@ -19,7 +19,7 @@ public class TaskDTO {
     @Column(name = "id_task", nullable = false)
     private Long id;
 
-    @JsonIgnore
+    //@JsonIgnore
     @Column(name = "data_task", nullable = false)
     private String task;
 

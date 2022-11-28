@@ -37,4 +37,8 @@ public interface VirtualServerRepo extends CrudRepository<VirtualServerDTO, Long
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     List<VirtualServerDTO> findAllByIdSrv(Long idSrv);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("select t from VirtualServerDTO t where t.idClient = :id_client and t.status >= 0 and length(t.response) = 0 order by t.id asc")
+    List<VirtualServerDTO> findAllByIdClient(@Param("id_client") Long idClient);
+
 }

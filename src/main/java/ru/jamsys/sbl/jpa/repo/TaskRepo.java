@@ -1,12 +1,10 @@
 package ru.jamsys.sbl.jpa.repo;
 
-import org.hibernate.annotations.Immutable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.jpa.dto.TaskDTO;
 
 import java.sql.Timestamp;
@@ -38,4 +36,8 @@ public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("select t from TaskDTO t where t.status = 0")
     List<TaskDTO> getPrepare();
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("select t from TaskDTO t where t.idClient = :id_client and t.status < 2 order by t.id")
+    List<TaskDTO> findAllByIdClient(@Param("id_client") Long idClient);
 }
