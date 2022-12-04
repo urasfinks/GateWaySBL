@@ -38,6 +38,6 @@ public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
     List<TaskDTO> getPrepare();
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("select t from TaskDTO t where t.idClient = :id_client and t.status < 2 order by t.id")
+    @Query("select t from TaskDTO t where t.idClient = :id_client and t.status < 2 and t.status >= 0 order by t.id")
     List<TaskDTO> findAllByIdClient(@Param("id_client") Long idClient);
 }
