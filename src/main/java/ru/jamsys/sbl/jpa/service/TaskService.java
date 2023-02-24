@@ -2,7 +2,6 @@ package ru.jamsys.sbl.jpa.service;
 
 import com.google.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -16,13 +15,15 @@ import ru.jamsys.sbl.message.MessageImpl;
 import ru.jamsys.sbl.web.GreetingClient;
 
 import javax.persistence.EntityManager;
-import javax.persistence.FlushModeType;
 import javax.persistence.PersistenceContext;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 public class TaskService {
@@ -371,8 +372,11 @@ public class TaskService {
 
     private int getNextPortRouter(long idRouter) {
         List<VirtualServerDTO> portRouter = virtualServerRepo.getPortRouter(idRouter);
-        int maxPortRouter = portRouter.size() > 0 ? portRouter.get(0).getPortRouter() : 22001;
-        return ++maxPortRouter;
+        List<Integer> list = IntStream.range(22001, 22100).boxed().collect(Collectors.toList());
+        for (VirtualServerDTO virtualServerDTO : portRouter) {
+            list.remove(virtualServerDTO.getPortRouter());
+        }
+        return list.get(0);
     }
 
     private int getNextPortServer(long idSrv) {

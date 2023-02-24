@@ -50,7 +50,11 @@ public class SblWebHandler {
     ClientRepo clientRepo;
     ServerRepo serverRepo;
     VirtualServerRepo virtualServerRepo;
+    BillidRepo billidRepo;
     VirtualServerStatusRepo virtualServerStatusRepo;
+    ActionsRepo actionsRepo;
+
+    DeleteTimeRepo deleteTimeRepo;
     TaskStatusRepo taskStatusRepo;
     TaskRepo taskRepo;
     CmpStatistic cmpStatistic;
@@ -76,6 +80,17 @@ public class SblWebHandler {
     }
 
     @Autowired
+    public void setBillidRepo(BillidRepo billidRepo) {
+        this.billidRepo = billidRepo;
+    }
+    @Autowired
+    public void setActionsRepo(ActionsRepo actionsRepo) {
+        this.actionsRepo = actionsRepo;
+    }
+    @Autowired
+    public void setDeleteTimeRepo(DeleteTimeRepo deleteTimeRepo) { this.deleteTimeRepo = deleteTimeRepo;}
+
+    @Autowired
     public void setServerRepo(ServerRepo serverRepo) {
         this.serverRepo = serverRepo;
     }
@@ -99,6 +114,19 @@ public class SblWebHandler {
     @NonNull
     public Mono<ServerResponse> getClient(ServerRequest serverRequest) {
         return ServerResponse.ok().body(Flux.fromIterable(clientRepo.findAll()), ClientDTO.class);
+    }
+    @NonNull
+    public Mono<ServerResponse> getBillid(ServerRequest serverRequest) {
+        return ServerResponse.ok().body(Flux.fromIterable(billidRepo.findAll()), BillidDTO.class);
+    }
+    @NonNull
+    public Mono<ServerResponse> getActions(ServerRequest serverRequest) {
+        return ServerResponse.ok().body(Flux.fromIterable(actionsRepo.findAll()), ActionsDTO.class);
+    }
+
+    @NonNull
+    public Mono<ServerResponse> getDeleteTime(ServerRequest serverRequest) {
+        return ServerResponse.ok().body(Flux.fromIterable(deleteTimeRepo.findAll()), DeleteTimeDTO.class);
     }
 
     @NonNull
@@ -141,6 +169,24 @@ public class SblWebHandler {
     public Mono<ServerResponse> getTaskByIdClient(ServerRequest serverRequest) {
         Long idClient = Long.parseLong(serverRequest.pathVariable("id"));
         return ServerResponse.ok().body(Flux.fromIterable(taskRepo.findAllByIdClient(idClient)), TaskDTO.class);
+    }
+
+    @NonNull
+    public Mono<ServerResponse> getBillidByIdClient(ServerRequest serverRequest) {
+        Long idClient = Long.parseLong(serverRequest.pathVariable("id"));
+        return ServerResponse.ok().body(Flux.fromIterable(billidRepo.findAllByIdClient(idClient)), BillidDTO.class);
+    }
+
+    @NonNull
+    public Mono<ServerResponse> getActionsByIdClient(ServerRequest serverRequest) {
+        Long idClient = Long.parseLong(serverRequest.pathVariable("id"));
+        return ServerResponse.ok().body(Flux.fromIterable(actionsRepo.findAllByIdClient(idClient)), ActionsDTO.class);
+    }
+
+    @NonNull
+    public Mono<ServerResponse> getDeleteTimeByIdVirtualServer(ServerRequest serverRequest) {
+        Long idSrv = Long.parseLong(serverRequest.pathVariable("id"));
+        return ServerResponse.ok().body(Flux.fromIterable(deleteTimeRepo.findAllByIdClient(idSrv)), ActionsDTO.class);
     }
 
     @NonNull
@@ -206,6 +252,20 @@ public class SblWebHandler {
         return postHandler(serverRequest, clientRepo, ClientDTO.class);
     }
 
+    @NonNull
+    public Mono<ServerResponse> postActions(ServerRequest serverRequest) {
+        return postHandler(serverRequest, actionsRepo, ActionsDTO.class);
+    }
+
+    @NonNull
+    public Mono<ServerResponse> postDeleteTime(ServerRequest serverRequest) {
+        return postHandler(serverRequest, deleteTimeRepo, DeleteTimeDTO.class);
+    }
+
+    @NonNull
+    public Mono<ServerResponse> postBillid(ServerRequest serverRequest) {
+        return postHandler(serverRequest, billidRepo, BillidDTO.class);
+    }
     @NonNull
     public Mono<ServerResponse> postServer(ServerRequest serverRequest) {
         return postHandler(serverRequest, serverRepo, ServerDTO.class);

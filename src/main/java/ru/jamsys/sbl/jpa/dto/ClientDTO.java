@@ -1,6 +1,7 @@
 package ru.jamsys.sbl.jpa.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import javax.persistence.*;
@@ -22,11 +23,14 @@ public class ClientDTO {
     @Column(name = "login_client", nullable = false)
     private String login;
 
-    @JsonIgnore
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @Column(name = "password_client", nullable = false)
     private String password;
 
     @Column(name = "date_add_client", insertable = false)
     private Timestamp dateAdd = new Timestamp(System.currentTimeMillis());
+
+    @Column(name = "telegram_id_client", nullable = false)
+    private Long telegram;
 
 }

@@ -27,11 +27,21 @@ public class WebRouter {
                 .GET("/VirtualServerStatus", sblWebHandler::getVirtualServerStatus)
                 .GET("/TaskStatus", sblWebHandler::getTaskStatus)
                 .GET("/healthCheck", accept(MediaType.TEXT_PLAIN), sblWebHandler::healthCheck)
+                .GET("/Billid", sblWebHandler::getBillid)
+                .GET("/Actions", sblWebHandler::getActions)
+                .GET("/DeleteTime", sblWebHandler::getDeleteTime)
+                .GET("/ActionsByIdClient/{id}", sblWebHandler::getActionsByIdClient)
+                .GET("/DeleteTimeByIdVirtualServer/{id}", sblWebHandler::getDeleteTimeByIdVirtualServer)
+                .GET("/BillidByIdClient/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getBillidByIdClient)
                 .GET("/TaskByIdClient/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getTaskByIdClient)
                 .GET("/VirtualServerByIdClient/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getVirtualServerByIdClient)
 
+
                 .POST("/api", sblWebHandler::getApi)
+                .POST("/Actions", accept(MediaType.TEXT_PLAIN), sblWebHandler::postActions)
+                .POST("/DeleteTime", accept(MediaType.TEXT_PLAIN), sblWebHandler::postDeleteTime)
                 .POST("/Client", accept(MediaType.TEXT_PLAIN), sblWebHandler::postClient)
+                .POST("/Billid", accept(MediaType.TEXT_PLAIN), sblWebHandler::postBillid)
                 .POST("/Server", accept(MediaType.TEXT_PLAIN), sblWebHandler::postServer)
                 .POST("/Task", accept(MediaType.TEXT_PLAIN), sblWebHandler::postTask)
                 //.POST("/VirtualServer", sblWebHandler::postVirtualServer) //Only native API
