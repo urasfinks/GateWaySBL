@@ -17,7 +17,7 @@ public class WebRouter {
 
         /*
         * POST - Исход вставки может быть разный (новый объект)
-        * PUT  - Идемпотентность вставки приводит к отному и тому же резултату (относим сюда UPDATE) !заменя целиком!
+        * PUT  - Идемпотентность вставки приводит к отному и тому же резултату (относим сюда UPDATE) !замена целиком!
         * PATCH - Частичная замена свойств, но также идемпотентная
         * */
         return RouterFunctions.route()
@@ -49,6 +49,7 @@ public class WebRouter {
                 .POST("/TaskStatus", sblWebHandler::postTaskStatus)
 
                 .PATCH("/TaskComplete", accept(MediaType.TEXT_PLAIN), sblWebHandler::patchTaskComplete)
+                .PATCH("/VirtualServer/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::patchVirtualServer)
                 .build();
 
     }

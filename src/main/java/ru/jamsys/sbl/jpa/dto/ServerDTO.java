@@ -44,4 +44,7 @@ public class ServerDTO {
     @Column(name = "port_srv", nullable = false)
     private Integer port = 3000;
 
+    @Column(name = "max_count_v_srv", nullable = false)
+    private Integer maxCountVSrv = 10;
+
 }

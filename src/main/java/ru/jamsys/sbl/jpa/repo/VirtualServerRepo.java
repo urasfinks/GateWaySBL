@@ -1,14 +1,13 @@
 package ru.jamsys.sbl.jpa.repo;
 
-import org.hibernate.annotations.Immutable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.jpa.dto.VirtualServerDTO;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 @Repository
@@ -33,6 +32,10 @@ public interface VirtualServerRepo extends CrudRepository<VirtualServerDTO, Long
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("select vs from VirtualServerDTO vs where vs.status = 0")
     List<VirtualServerDTO> getPrepare();
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("select vs from VirtualServerDTO vs where vs.dateRemove < :time and vs.status >= 0")
+    List<VirtualServerDTO> getRemove(@Param("time") Timestamp time);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     List<VirtualServerDTO> findAllByIdSrv(Long idSrv);

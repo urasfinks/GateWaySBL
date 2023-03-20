@@ -2,7 +2,6 @@ package ru.jamsys.sbl.jpa.service;
 
 import com.google.gson.Gson;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -114,16 +113,20 @@ public class PingService {
                                     if (split.length == 2) {
                                         Long idVSrv = Long.parseLong(split[1]);
                                         marked.add(idVSrv);
-                                        if (idVSrv != null) {
+                                        //if (idVSrv != null) {
                                             for (VirtualServerDTO virtualServerDTO : listVirtualServer) {
                                                 if (virtualServerDTO.getId().equals(idVSrv)) {
-                                                    virtualServerDTO.setStatus(statusVM);
+                                                    if (virtualServerDTO.getStatus() != -2) { //Если сервер помечен как удалён, не надо ему ничего менять
+                                                        virtualServerDTO.setStatus(statusVM);
+                                                    } else {
+                                                        System.out.println("VirtualServer " + virtualServerDTO.getId() + " marked status -2, ping skip");
+                                                    }
                                                     virtualServerDTO.setVmStatusDate((String) vm.get("date"));
                                                     saveWithoutCache(virtualServerRepo, virtualServerDTO);
                                                     break;
                                                 }
                                             }
-                                        }
+                                        //}
                                     }
                                 }
                             } catch (Exception e) {

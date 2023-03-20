@@ -53,4 +53,7 @@ public class VirtualServerDTO {
 
     @Column(name = "rdp_info_v_srv")
     private String rdpInfo;
+
+    @Column(name = "date_remove_v_srv")
+    private Timestamp dateRemove;
 }

@@ -17,8 +17,9 @@ import ru.jamsys.sbl.web.GreetingClient;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -106,6 +107,28 @@ public class TaskService {
                     ret = new MessageImpl();
                 }
             }
+
+            List<VirtualServerDTO> removedVSrv = virtualServerRepo.getRemove(timestamp);
+            for (VirtualServerDTO virtualServerDTO : removedVSrv) {
+
+                virtualServerDTO.setStatus(-2);
+                saveWithoutCache(virtualServerRepo, virtualServerDTO);
+                System.out.println("NEED REMOVE " + virtualServerDTO);
+                TaskDTO removeTask = new TaskDTO();
+                Map<String, Object> dataRemoveTask = new HashMap<>();
+                dataRemoveTask.put("action", "ControlVM");
+                dataRemoveTask.put("command", "remove");
+                dataRemoveTask.put("name", virtualServerDTO.getIso() + "_" + virtualServerDTO.getId());
+
+                removeTask.setIdClient(virtualServerDTO.getIdClient());
+                removeTask.setLinkIdVSrv(virtualServerDTO.getId());
+                removeTask.setLinkIdSrv(virtualServerDTO.getIdSrv());
+
+                removeTask.setTask(Util.jsonObjectToString(dataRemoveTask));
+                System.out.println(removeTask);
+                saveWithoutCache(taskRepo, removeTask);
+            }
+
         }
         return ret;
     }
@@ -311,6 +334,20 @@ public class TaskService {
             virtualServerDTO.setPassword(password);
             virtualServerDTO.setIdTask(task.getId());
             virtualServerDTO.setRdpInfo(freeServer.getIp() + ":" + portRouter);
+
+            if (parsed.containsKey("dateRemove")) {
+                String inDate = (String) parsed.get("dateRemove");
+                String dateTemplate = "dd.MM.yyyy hh:mm:ss";
+                try {
+                    DateFormat df = new SimpleDateFormat(dateTemplate);
+                    Timestamp ts = new Timestamp(df.parse(inDate).getTime());
+                    virtualServerDTO.setDateRemove(ts);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            //System.out.println(virtualServerDTO);
+            //next = false;
 
             saveWithoutCache(virtualServerRepo, virtualServerDTO);
 

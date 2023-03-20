@@ -26,6 +26,9 @@ import ru.jamsys.sbl.jpa.service.TaskService;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.sound.midi.Soundbank;
+import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -83,12 +86,16 @@ public class SblWebHandler {
     public void setBillidRepo(BillidRepo billidRepo) {
         this.billidRepo = billidRepo;
     }
+
     @Autowired
     public void setActionsRepo(ActionsRepo actionsRepo) {
         this.actionsRepo = actionsRepo;
     }
+
     @Autowired
-    public void setDeleteTimeRepo(DeleteTimeRepo deleteTimeRepo) { this.deleteTimeRepo = deleteTimeRepo;}
+    public void setDeleteTimeRepo(DeleteTimeRepo deleteTimeRepo) {
+        this.deleteTimeRepo = deleteTimeRepo;
+    }
 
     @Autowired
     public void setServerRepo(ServerRepo serverRepo) {
@@ -115,10 +122,12 @@ public class SblWebHandler {
     public Mono<ServerResponse> getClient(ServerRequest serverRequest) {
         return ServerResponse.ok().body(Flux.fromIterable(clientRepo.findAll()), ClientDTO.class);
     }
+
     @NonNull
     public Mono<ServerResponse> getBillid(ServerRequest serverRequest) {
         return ServerResponse.ok().body(Flux.fromIterable(billidRepo.findAll()), BillidDTO.class);
     }
+
     @NonNull
     public Mono<ServerResponse> getActions(ServerRequest serverRequest) {
         return ServerResponse.ok().body(Flux.fromIterable(actionsRepo.findAll()), ActionsDTO.class);
@@ -139,7 +148,8 @@ public class SblWebHandler {
             JsonResponse jRet = new JsonResponse();
             if (body != null && !body.isEmpty()) {
                 try {
-                    jRet.addData("idClient", 453);
+                    //jRet.addData("idClient", 453);
+                    jRet.addData("idClient", 92602);
                 } catch (Exception e) {
                     jRet.set(HttpStatus.EXPECTATION_FAILED, e.toString());
                     e.printStackTrace();
@@ -266,6 +276,7 @@ public class SblWebHandler {
     public Mono<ServerResponse> postBillid(ServerRequest serverRequest) {
         return postHandler(serverRequest, billidRepo, BillidDTO.class);
     }
+
     @NonNull
     public Mono<ServerResponse> postServer(ServerRequest serverRequest) {
         return postHandler(serverRequest, serverRepo, ServerDTO.class);
@@ -318,9 +329,70 @@ public class SblWebHandler {
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     @NonNull
+    public Mono<ServerResponse> patchVirtualServer(ServerRequest serverRequest) {
+        System.out.println("Request");
+        Long idVSrv = Long.parseLong(serverRequest.pathVariable("id"));
+        return patchHandler(serverRequest, (body, jRet) -> {
+            Util.logConsole(Thread.currentThread(), "::patchTaskComplete " + body);
+            synchronized (SblApplication.class) {
+                //virtualServerRepo.
+                Map<String, Object> req = null;
+                boolean next = true;
+                if (next) {
+                    try {
+                        req = new Gson().fromJson(body, Map.class);
+                    } catch (Exception e) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Json parsing fail: " + body);
+                        next = false;
+                    }
+                }
+                VirtualServerDTO virtualServerDTO = null;
+                if (next) {
+                    try {
+                        virtualServerDTO = virtualServerRepo.findById(idVSrv).orElse(null);
+                        if (virtualServerDTO == null) {
+                            jRet.set(HttpStatus.OK, "Not found VirtualServer " + idVSrv + ": " + body);
+                            next = false;
+                        }
+                    } catch (Exception e) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Exception get task: " + e);
+                        next = false;
+                    }
+                }
+                if (next) {
+                    if (!req.containsKey("dateRemove")) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Field dateRemove not found in json: " + body);
+                        next = false;
+                    }
+                }
+                if (next) {
+                    String inDate = (String) req.get("dateRemove");
+                    String dateTemplate = "dd.MM.yyyy hh:mm:ss";
+                    try {
+                        DateFormat df = new SimpleDateFormat(dateTemplate);
+                        Timestamp ts = new Timestamp(df.parse(inDate).getTime());
+                        virtualServerDTO.setDateRemove(ts);
+                    } catch (Exception e) {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, "Field parse dateRemove: " + inDate + " by template: " + dateTemplate);
+                        next = false;
+                    }
+                }
+                if (next) {
+                    saveWithoutCache(virtualServerRepo, virtualServerDTO);
+                }
+                //jRet.set(HttpStatus.EXPECTATION_FAILED, "idVSrv: " + idVSrv + " body: " + body);
+                if (!next) {
+                    Util.logConsole(Thread.currentThread(), jRet.toString());
+                }
+            }
+        });
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE)
+    @NonNull
     public Mono<ServerResponse> patchTaskComplete(ServerRequest serverRequest) {
         return patchHandler(serverRequest, (body, jRet) -> {
-            //Util.logConsole(Thread.currentThread(), "::patchTaskComplete " + body);
+            Util.logConsole(Thread.currentThread(), "::patchTaskComplete " + body);
             synchronized (SblApplication.class) {
                 Map<String, Object> req = null;
                 boolean next = true;
@@ -353,7 +425,9 @@ public class SblWebHandler {
                         Double x = (Double) req.get("idTask");
                         task = taskRepo.findById(x.longValue()).orElse(null);
                         if (task == null) {
-                            jRet.set(HttpStatus.EXPECTATION_FAILED, "Not found task: " + body);
+                            //Наткнулся на неочень приятную историю, когда удалил таску, и логично что мы её не можем найти
+                            //VirtualBoxController впал в бесконечнй докат, поэтому я верну OK
+                            jRet.set(HttpStatus.OK, "Not found task: " + body);
                             next = false;
                         }
                     } catch (Exception e) {
