@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.jamsys.sbl.SblApplication;
 import ru.jamsys.sbl.Util;
+import ru.jamsys.sbl.WrapJsonToObject;
 import ru.jamsys.sbl.jpa.dto.*;
 import ru.jamsys.sbl.jpa.repo.*;
 import ru.jamsys.sbl.message.Message;
@@ -425,7 +426,23 @@ public class TaskService {
     private ServerDTO getFreeServerAndLock(TaskDTO task) {
         try {
             List<ServerDTO> alreadyServer = serverRepo.getAlready();
+            WrapJsonToObject<Map> mapWrapJsonToObject = Util.jsonToObject(task.getTask(), Map.class);
+            String preferNameSrv = null;
+            if (mapWrapJsonToObject.getException() != null) {
+                Map object = mapWrapJsonToObject.getObject();
+                if (object.containsKey("preferNameSrv")) {
+                    preferNameSrv = (String) object.get("preferNameSrv");
+                }
+            }
             if (alreadyServer.size() > 0) {
+                if (preferNameSrv != null) {
+                    for (ServerDTO curSrv : alreadyServer) {
+                        if (curSrv.getName().equals(preferNameSrv)) {
+                            lockServer(curSrv, task);
+                            return curSrv;
+                        }
+                    }
+                }
                 ServerDTO srv = alreadyServer.get(0);
                 lockServer(srv, task);
                 return srv;
