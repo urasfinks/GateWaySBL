@@ -227,6 +227,16 @@ public class SblWebHandler {
             JsonResponse jRet = new JsonResponse();
             if (body != null && !body.isEmpty()) {
                 try {
+                    WrapJsonToObject<Map> test = Util.jsonToObject(body, Map.class);
+                    if (test.getObject().containsKey("action")) {
+                        String act = (String) test.getObject().get("action");
+                        if (act.equals("CreateVM")) {
+                            int countAvailable = serverRepo.getAvailable().size();
+                            if (countAvailable == 0) {
+                                throw new Exception("No servers available");
+                            }
+                        }
+                    }
                     WrapJsonToObject<T> wrapJsonToObject = handler != null ?
                             Util.jsonToObjectOverflowProperties(body, classType)
                             : Util.jsonToObject(body, classType);
