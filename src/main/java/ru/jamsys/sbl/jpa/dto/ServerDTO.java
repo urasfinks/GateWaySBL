@@ -47,4 +47,7 @@ public class ServerDTO {
     @Column(name = "max_count_v_srv", nullable = false)
     private Integer maxCountVSrv = 10;
 
+    @Column(name = "try_ping_date_srv", insertable = false)
+    private Timestamp tryPingDate;
+
 }

@@ -148,9 +148,11 @@ public class PingService {
                 }
                 if (success == true) {
                     serverDTO.setPingDate(new Timestamp(System.currentTimeMillis()));
+                    serverDTO.setTryPingDate(new Timestamp(System.currentTimeMillis()));
                     serverDTO.setPingStatus(1);
                 } else {
                     serverDTO.setPingStatus(-1);
+                    serverDTO.setTryPingDate(new Timestamp(System.currentTimeMillis()));
                 }
                 saveWithoutCache(serverRepo, serverDTO);
             }
