@@ -30,19 +30,18 @@ import java.util.stream.IntStream;
 @Service
 public class TaskService {
 
-    @PersistenceContext
-    private EntityManager em;
-
-    protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
-        return SblApplication.saveWithoutCache(em, crudRepository, entity);
-    }
-
     GreetingClient greetingClient;
     VirtualServerRepo virtualServerRepo;
     TaskRepo taskRepo;
     ServerRepo serverRepo;
     RouterRepo routerRepo;
     TaskStatusRepo taskStatusRepo;
+    @PersistenceContext
+    private EntityManager em;
+
+    protected <T> T saveWithoutCache(CrudRepository<T, Long> crudRepository, T entity) {
+        return SblApplication.saveWithoutCache(em, crudRepository, entity);
+    }
 
     @Autowired
     public void setTaskStatusRepo(TaskStatusRepo taskStatusRepo) {
@@ -248,10 +247,10 @@ public class TaskService {
                 taskComplete(task);
             }
 
-            if (next == false && lockServer == true) {
+            if (!next && lockServer) {
                 status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
                 serverDTO.setStatus(serverBusy ? 1 : 0);
-                Util.logConsole(Thread.currentThread(), "Set status = " + serverDTO.getStatus() + "; idVSrv = " + serverDTO.getId() + "Task: " + task.toString());
+                Util.logConsole(Thread.currentThread(), "Set status = " + serverDTO.getStatus() + "; idVSrv = " + serverDTO.getId() + "Task: " + task);
 
                 saveWithoutCache(serverRepo, serverDTO);
             }
@@ -398,7 +397,7 @@ public class TaskService {
             taskComplete(task);
         }
 
-        if (next == false && lockServer == true) {
+        if (!next && lockServer) {
             status("INFO", task, "ServerDTO Возвращаю статус серверу 0, потому что ошибки исполнения таски");
             freeServer.setStatus(serverBusy ? 1 : 0);
             Util.logConsole(Thread.currentThread(), "Set status = " + freeServer.getStatus() + "; idVSrv = " + freeServer.getId() + "Task: " + task.toString());
@@ -425,7 +424,7 @@ public class TaskService {
 
     private ServerDTO getFreeServerAndLock(TaskDTO task) {
         try {
-            List<ServerDTO> alreadyServer = serverRepo.getAlready();
+            List<ServerDTO> alreadyServer = serverRepo.getAvailable();
             WrapJsonToObject<Map> mapWrapJsonToObject = Util.jsonToObject(task.getTask(), Map.class);
             String preferNameSrv = null;
             if (mapWrapJsonToObject.getException() != null) {
@@ -447,6 +446,7 @@ public class TaskService {
                 lockServer(srv, task);
                 return srv;
             }
+            Util.telegramSend("Нет доступных серверов");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -462,6 +462,9 @@ public class TaskService {
     }
 
     public void status(String level, TaskDTO task, String data) {
+        if (level.equals("ERROR")) {
+            Util.telegramSend("Task Error: " + data);
+        }
         if (task != null) {
             task.setResult(data);
             TaskStatusDTO status = new TaskStatusDTO();

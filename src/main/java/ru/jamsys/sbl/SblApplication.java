@@ -39,7 +39,11 @@ public class SblApplication {
         context = SpringApplication.run(SblApplication.class, args);
         initContext(context, false);
         t1();
+        Util.telegramSend("Start server");
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> Util.telegramSend("Stop server")));
     }
+
+
 
     public static void t1() {
         TaskService taskService = context.getBean(TaskService.class);

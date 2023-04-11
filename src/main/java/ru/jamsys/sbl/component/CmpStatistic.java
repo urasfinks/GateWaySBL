@@ -113,6 +113,7 @@ public class CmpStatistic extends CmpServiceScheduler {
                         Util.jsonObjectToString(statistic),
                         5).block();
             } catch (Exception e) {
+                Util.telegramSend("Error ElasticSearch");
                 e.printStackTrace();
             }
         };

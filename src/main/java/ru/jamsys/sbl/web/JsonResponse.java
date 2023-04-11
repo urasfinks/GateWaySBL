@@ -21,9 +21,12 @@ public class JsonResponse {
     public void set(HttpStatus status, String description) {
         this.status = status;
         this.description = description;
+        if (status != HttpStatus.OK) {
+            Util.telegramSend("Сформирован не успешный ответ: " + description);
+        }
     }
 
-    public void addData(String key, Object value){
+    public void addData(String key, Object value) {
         data.put(key, value);
     }
 

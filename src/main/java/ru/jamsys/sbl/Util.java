@@ -6,14 +6,14 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import org.springframework.core.env.Environment;
 import reactor.util.annotation.Nullable;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -154,6 +154,44 @@ public class Util {
         PrintWriter pw = new PrintWriter(sw);
         e.printStackTrace(pw);
         return sw.toString();
+    }
+
+    public static String telegramSend(String data) {
+        return telegramSend("-901324385", data);
+    }
+
+    public static String telegramSend(String idChat, String data) {
+        if (idChat == null) {
+            return "{\"status\": \"idChatTelegram is null\"}";
+        }
+        try {
+            String urlString = "https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s";
+
+            //String apiToken = "6091094290:AAH8VKY9qyo7ezvnq_3LFw7Alh0zOS-sjqM";
+            String apiToken = "6036561084:AAGlIBVSnAOSK8TT-rEDKBJCBX7M40OCv1I";
+            if (apiToken != null) {
+                urlString = String.format(urlString, apiToken, idChat, URLEncoder.encode(data, StandardCharsets.UTF_8.toString()));
+                //System.out.println(urlString);
+                URL url = new URL(urlString);
+                URLConnection conn = url.openConnection();
+
+                StringBuilder sb = new StringBuilder();
+                InputStream is = new BufferedInputStream(conn.getInputStream());
+                BufferedReader br = new BufferedReader(new InputStreamReader(is));
+                String inputLine = "";
+                while ((inputLine = br.readLine()) != null) {
+                    sb.append(inputLine);
+                }
+                return sb.toString();
+            } else {
+                return "{\"status\": \"Telegram bot token is null\"}";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, String> result = new HashMap<>();
+            result.put("status", e.toString());
+            return Util.jsonObjectToString(result);
+        }
     }
 
 }
