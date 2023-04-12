@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
-
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.jamsys.sbl.SblApplication;
@@ -25,11 +24,11 @@ import ru.jamsys.sbl.jpa.service.TaskService;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import javax.sound.midi.Soundbank;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
@@ -231,6 +230,9 @@ public class SblWebHandler {
                     if (test.getObject().containsKey("action")) {
                         String act = (String) test.getObject().get("action");
                         if (act.equals("CreateVM")) {
+
+                            SblApplication.sendAvgVSrvAvailable(serverRepo);
+
                             int countAvailable = serverRepo.getAvailable().size();
                             if (countAvailable == 0) {
                                 throw new Exception("No servers available");

@@ -50,4 +50,7 @@ public class ServerDTO {
     @Column(name = "try_ping_date_srv", insertable = false)
     private Timestamp tryPingDate;
 
+    @Column(name = "tmp")
+    private String tmp;
+
 }

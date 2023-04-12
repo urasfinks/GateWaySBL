@@ -2,6 +2,7 @@ package ru.jamsys.sbl;
 
 import org.hibernate.CacheMode;
 import org.hibernate.Session;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -10,6 +11,8 @@ import ru.jamsys.sbl.component.CmpService;
 import ru.jamsys.sbl.component.CmpServiceStabilizer;
 import ru.jamsys.sbl.component.CmpStatistic;
 import ru.jamsys.sbl.component.CmpStatisticCpu;
+import ru.jamsys.sbl.jpa.dto.ServerDTO;
+import ru.jamsys.sbl.jpa.repo.ServerRepo;
 import ru.jamsys.sbl.jpa.service.PingService;
 import ru.jamsys.sbl.jpa.service.StatisticService;
 import ru.jamsys.sbl.jpa.service.TaskService;
@@ -17,6 +20,10 @@ import ru.jamsys.sbl.service.SblService;
 
 import javax.persistence.EntityManager;
 import javax.persistence.FlushModeType;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @SpringBootApplication
 public class SblApplication {
@@ -40,6 +47,7 @@ public class SblApplication {
         initContext(context, false);
         t1();
         Util.telegramSend("Start server");
+        sendAvgVSrvAvailable(context.getBean(ServerRepo.class));
         Runtime.getRuntime().addShutdownHook(new Thread(() -> Util.telegramSend("Stop server")));
     }
 
@@ -80,4 +88,21 @@ public class SblApplication {
         return ret;
     }
 
+    public static void sendAvgVSrvAvailable(ServerRepo serverRepo) {
+        try {
+            Map<String, Object> telegramBody = new LinkedHashMap<>();
+            List<ServerDTO> avg = serverRepo.getAvgAvailable();
+            telegramBody.put("action", "CreateVM");
+            if (avg.size() > 0) {
+                telegramBody.put("vdsMax", avg.get(0).getMaxCountVSrv());
+                telegramBody.put("vdsAvailable", avg.get(0).getMaxCountVSrv() - Integer.parseInt(avg.get(0).getTmp()));
+            } else {
+                telegramBody.put("vdsMax", 0);
+                telegramBody.put("vdsAvailable", 0);
+            }
+            Util.telegramSend(Util.jsonObjectToString(telegramBody));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
