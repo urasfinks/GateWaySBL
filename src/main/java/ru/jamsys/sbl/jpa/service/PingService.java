@@ -116,10 +116,10 @@ public class PingService {
                                         //if (idVSrv != null) {
                                             for (VirtualServerDTO virtualServerDTO : listVirtualServer) {
                                                 if (virtualServerDTO.getId().equals(idVSrv)) {
-                                                    if (virtualServerDTO.getStatus() != -2) { //Если сервер помечен как удалён, не надо ему ничего менять
+                                                    if (virtualServerDTO.getStatus() > -2) { //Если сервер помечен как удалён, не надо ему ничего менять
                                                         virtualServerDTO.setStatus(statusVM);
                                                     } else {
-                                                        System.out.println("VirtualServer " + virtualServerDTO.getId() + " marked status -2, ping skip");
+                                                        System.out.println("VirtualServer " + virtualServerDTO.getId() + " marked status <= -2, ping skip");
                                                     }
                                                     virtualServerDTO.setVmStatusDate((String) vm.get("date"));
                                                     saveWithoutCache(virtualServerRepo, virtualServerDTO);
@@ -137,7 +137,7 @@ public class PingService {
                         List<VirtualServerDTO> all = virtualServerRepo.findAllByIdSrv(serverDTO.getId());
                         for (VirtualServerDTO virtualServerDTO : all) {
                             if (!marked.contains(virtualServerDTO.getId()) && virtualServerDTO.getStatus() > 0) {
-                                virtualServerDTO.setStatus(-2);
+                                virtualServerDTO.setStatus(-3);
                                 virtualServerDTO.setVmStatusDate(LocalDateTime.now().toString());
                                 saveWithoutCache(virtualServerRepo, virtualServerDTO);
                             }

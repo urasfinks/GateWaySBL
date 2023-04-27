@@ -108,29 +108,35 @@ public class TaskService {
                 }
             }
 
-            List<VirtualServerDTO> removedVSrv = virtualServerRepo.getRemove(timestamp);
-            for (VirtualServerDTO virtualServerDTO : removedVSrv) {
+            List<VirtualServerDTO> removedVSrv = virtualServerRepo.getRemove(new Timestamp(System.currentTimeMillis()));
+            emitTask(removedVSrv, "preremove", -2);
 
-                virtualServerDTO.setStatus(-2);
-                saveWithoutCache(virtualServerRepo, virtualServerDTO);
-                System.out.println("NEED REMOVE " + virtualServerDTO);
-                TaskDTO removeTask = new TaskDTO();
-                Map<String, Object> dataRemoveTask = new HashMap<>();
-                dataRemoveTask.put("action", "ControlVM");
-                dataRemoveTask.put("command", "remove");
-                dataRemoveTask.put("name", virtualServerDTO.getIso() + "_" + virtualServerDTO.getId());
-
-                removeTask.setIdClient(virtualServerDTO.getIdClient());
-                removeTask.setLinkIdVSrv(virtualServerDTO.getId());
-                removeTask.setLinkIdSrv(virtualServerDTO.getIdSrv());
-
-                removeTask.setTask(Util.jsonObjectToString(dataRemoveTask));
-                System.out.println(removeTask);
-                saveWithoutCache(taskRepo, removeTask);
-            }
+            removedVSrv = virtualServerRepo.getRemove(new Timestamp(System.currentTimeMillis() - 1 * 60 * 60 * 24 * 1000));
+            emitTask(removedVSrv, "remove", -3);
 
         }
         return ret;
+    }
+
+    private void emitTask(List<VirtualServerDTO> removedVSrv, String action, int status) {
+        for (VirtualServerDTO virtualServerDTO : removedVSrv) {
+            virtualServerDTO.setStatus(status);
+            saveWithoutCache(virtualServerRepo, virtualServerDTO);
+            System.out.println("NEED " + action + " " + virtualServerDTO);
+            TaskDTO removeTask = new TaskDTO();
+            Map<String, Object> dataRemoveTask = new HashMap<>();
+            dataRemoveTask.put("action", "ControlVM");
+            dataRemoveTask.put("command", action);
+            dataRemoveTask.put("name", virtualServerDTO.getIso() + "_" + virtualServerDTO.getId());
+
+            removeTask.setIdClient(virtualServerDTO.getIdClient());
+            removeTask.setLinkIdVSrv(virtualServerDTO.getId());
+            removeTask.setLinkIdSrv(virtualServerDTO.getIdSrv());
+
+            removeTask.setTask(Util.jsonObjectToString(dataRemoveTask));
+            System.out.println(removeTask);
+            saveWithoutCache(taskRepo, removeTask);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -386,7 +392,7 @@ public class TaskService {
                 }
             } catch (Exception e) {
                 taskFuture(task, "VirtualBoxController request exception: " + Util.stackTraceToString(e));
-                virtualServerDTO.setStatus(-2); //Ошибка создания сервера, просто пометим его как удалённый, но на самом деле, сервер просто мог не дособраться, но будет работать
+                virtualServerDTO.setStatus(-3); //Ошибка создания сервера, просто пометим его как удалённый, но на самом деле, сервер просто мог не дособраться, но будет работать
                 virtualServerDTO.setResponse("При создании сервера произошла ошибка, будет создаваться новый сервер");
                 saveWithoutCache(virtualServerRepo, virtualServerDTO);
                 next = false;
