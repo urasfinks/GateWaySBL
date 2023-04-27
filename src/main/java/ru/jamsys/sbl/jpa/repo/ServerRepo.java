@@ -55,7 +55,7 @@ SELECT 0 AS ID_SRV,
 	MAX(S1.TRY_PING_DATE_SRV) AS TRY_PING_DATE_SRV,
 	SUM(SQ1.AV) || '' AS TMP
 FROM SRV S1
-INNER JOIN
+LEFT JOIN
 	(SELECT VS1.ID_SRV,
 			COUNT(*) AS AV
 		FROM V_SRV VS1
@@ -80,7 +80,7 @@ WHERE 1 = 1
             "\tMAX(S1.TRY_PING_DATE_SRV) AS TRY_PING_DATE_SRV,\n" +
             "\tSUM(SQ1.AV) || '' AS TMP\n" +
             "FROM SRV S1\n" +
-            "INNER JOIN\n" +
+            "LEFT JOIN\n" +
             "\t(SELECT VS1.ID_SRV,\n" +
             "\t\t\tCOUNT(*) AS AV\n" +
             "\t\tFROM V_SRV VS1\n" +

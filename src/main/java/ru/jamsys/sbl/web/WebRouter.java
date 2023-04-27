@@ -36,6 +36,8 @@ public class WebRouter {
                 .GET("/TaskByIdClient/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getTaskByIdClient)
                 .GET("/VirtualServerByIdClient/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getVirtualServerByIdClient)
 
+                .GET("/VdsAvailable", sblWebHandler::getVdsAvailable)
+
 
                 .POST("/api", sblWebHandler::getApi)
                 .POST("/Actions", accept(MediaType.TEXT_PLAIN), sblWebHandler::postActions)

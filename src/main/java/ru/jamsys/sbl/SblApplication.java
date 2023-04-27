@@ -46,8 +46,7 @@ public class SblApplication {
         context = SpringApplication.run(SblApplication.class, args);
         initContext(context, false);
         t1();
-        Util.telegramSend("Start server");
-        sendAvgVSrvAvailable(context.getBean(ServerRepo.class));
+        Util.telegramSend(getAvgVSrvAvailable(context.getBean(ServerRepo.class), "Start server"));
         Runtime.getRuntime().addShutdownHook(new Thread(() -> Util.telegramSend("Stop server")));
     }
 
@@ -88,21 +87,18 @@ public class SblApplication {
         return ret;
     }
 
-    public static void sendAvgVSrvAvailable(ServerRepo serverRepo) {
-        try {
-            Map<String, Object> telegramBody = new LinkedHashMap<>();
-            List<ServerDTO> avg = serverRepo.getAvgAvailable();
-            telegramBody.put("action", "CreateVM");
-            if (avg.size() > 0) {
-                telegramBody.put("vdsMax", avg.get(0).getMaxCountVSrv());
-                telegramBody.put("vdsAvailable", avg.get(0).getMaxCountVSrv() - Integer.parseInt(avg.get(0).getTmp()));
-            } else {
-                telegramBody.put("vdsMax", 0);
-                telegramBody.put("vdsAvailable", 0);
-            }
-            Util.telegramSend(Util.jsonObjectToString(telegramBody));
-        } catch (Exception e) {
-            e.printStackTrace();
+    public static String getAvgVSrvAvailable(ServerRepo serverRepo, String action) {
+        Map<String, Object> telegramBody = new LinkedHashMap<>();
+        List<ServerDTO> avg = serverRepo.getAvgAvailable();
+        telegramBody.put("action", action);
+        if (avg.size() > 0) {
+            telegramBody.put("vdsMax", avg.get(0).getMaxCountVSrv());
+            telegramBody.put("vdsAvailable", avg.get(0).getMaxCountVSrv() - Integer.parseInt(avg.get(0).getTmp()));
+        } else {
+            telegramBody.put("vdsMax", 0);
+            telegramBody.put("vdsAvailable", 0);
         }
+        return Util.jsonObjectToString(telegramBody);
     }
+
 }

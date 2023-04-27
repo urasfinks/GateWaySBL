@@ -231,7 +231,11 @@ public class SblWebHandler {
                         String act = (String) test.getObject().get("action");
                         if (act.equals("CreateVM")) {
 
-                            SblApplication.sendAvgVSrvAvailable(serverRepo);
+                            try {
+                                Util.telegramSend(SblApplication.getAvgVSrvAvailable(serverRepo, "CreateVM"));
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
 
                             int countAvailable = serverRepo.getAvailable().size();
                             if (countAvailable == 0) {
@@ -540,4 +544,7 @@ public class SblWebHandler {
     }
 
 
+    public Mono<ServerResponse> getVdsAvailable(ServerRequest serverRequest) {
+        return ServerResponse.ok().body(BodyInserters.fromValue(SblApplication.getAvgVSrvAvailable(serverRepo, "check")));
+    }
 }
