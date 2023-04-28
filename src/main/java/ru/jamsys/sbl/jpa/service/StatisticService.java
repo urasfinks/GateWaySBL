@@ -79,6 +79,7 @@ public class StatisticService {
             map.put("countSrv" + serverDTO.getId() + "_0", 0);
             map.put("countSrv" + serverDTO.getId() + "_-1", 0);
             map.put("countSrv" + serverDTO.getId() + "_-2", 0);
+            map.put("countSrv" + serverDTO.getId() + "_-3", 0);
 
             for (VirtualServerDTO virtualServerDTO : allVirtualServer) {
                 if (virtualServerDTO.getIdSrv().equals(serverDTO.getId())) {

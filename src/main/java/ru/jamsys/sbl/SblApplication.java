@@ -93,7 +93,9 @@ public class SblApplication {
         telegramBody.put("action", action);
         if (avg.size() > 0) {
             telegramBody.put("vdsMax", avg.get(0).getMaxCountVSrv());
-            telegramBody.put("vdsAvailable", avg.get(0).getMaxCountVSrv() - Integer.parseInt(avg.get(0).getTmp()));
+            String tmp = avg.get(0).getTmp();
+            int alreadyCreate = (tmp != null && !tmp.trim().equals("")) ? Integer.parseInt(avg.get(0).getTmp()) : 0;
+            telegramBody.put("vdsAvailable", avg.get(0).getMaxCountVSrv() - alreadyCreate);
         } else {
             telegramBody.put("vdsMax", 0);
             telegramBody.put("vdsAvailable", 0);
