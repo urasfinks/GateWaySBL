@@ -16,7 +16,7 @@ public interface TaskRepo extends CrudRepository<TaskDTO, Long> {
 //    List<TaskDTO> getExecute(@Param("time") Timestamp time);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("select t from TaskDTO t where t.dateExecute < :time and t.status = 0 order by t.id")
+    @Query("select t from TaskDTO t where t.dateExecute < :time and t.status = 0 order by t.id desc")
     List<TaskDTO> getAlready(@Param("time") Timestamp time);
 
     //@Lock(LockModeType.PESSIMISTIC_WRITE)

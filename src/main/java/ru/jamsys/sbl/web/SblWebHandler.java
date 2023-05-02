@@ -27,6 +27,7 @@ import javax.persistence.PersistenceContext;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,9 +54,9 @@ public class SblWebHandler {
     ServerRepo serverRepo;
     VirtualServerRepo virtualServerRepo;
     BillidRepo billidRepo;
+    PromoRepo promoRepo;
     VirtualServerStatusRepo virtualServerStatusRepo;
     ActionsRepo actionsRepo;
-
     DeleteTimeRepo deleteTimeRepo;
     TaskStatusRepo taskStatusRepo;
     TaskRepo taskRepo;
@@ -84,6 +85,11 @@ public class SblWebHandler {
     @Autowired
     public void setBillidRepo(BillidRepo billidRepo) {
         this.billidRepo = billidRepo;
+    }
+
+    @Autowired
+    public void setPromoRepo(PromoRepo promoRepo) {
+        this.promoRepo = promoRepo;
     }
 
     @Autowired
@@ -139,6 +145,9 @@ public class SblWebHandler {
 
     @NonNull
     public Mono<ServerResponse> getApi(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         cmpStatistic.incShareStatistic("WebRequestApi");
         Mono<String> bodyData = serverRequest.bodyToMono(String.class);
 
@@ -166,160 +175,180 @@ public class SblWebHandler {
 
     @NonNull
     public Mono<ServerResponse> getServer(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return ServerResponse.ok().body(Flux.fromIterable(serverRepo.findAll()), ServerDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> getVirtualServer(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return ServerResponse.ok().body(Flux.fromIterable(virtualServerRepo.findAll()), VirtualServerDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> getTaskByIdClient(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         Long idClient = Long.parseLong(serverRequest.pathVariable("id"));
         return ServerResponse.ok().body(Flux.fromIterable(taskRepo.findAllByIdClient(idClient)), TaskDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> getBillidByIdClient(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         Long idClient = Long.parseLong(serverRequest.pathVariable("id"));
         return ServerResponse.ok().body(Flux.fromIterable(billidRepo.findAllByIdClient(idClient)), BillidDTO.class);
     }
 
+    public Mono<ServerResponse> getPromoCode(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
+        String promo = serverRequest.pathVariable("id");
+        return ServerResponse.ok().body(Flux.fromIterable(promoRepo.findAllByPromo(promo)), PromoDTO.class);
+    }
+
     @NonNull
     public Mono<ServerResponse> getActionsByIdClient(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         Long idClient = Long.parseLong(serverRequest.pathVariable("id"));
         return ServerResponse.ok().body(Flux.fromIterable(actionsRepo.findAllByIdClient(idClient)), ActionsDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> getDeleteTimeByIdVirtualServer(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         Long idSrv = Long.parseLong(serverRequest.pathVariable("id"));
         return ServerResponse.ok().body(Flux.fromIterable(deleteTimeRepo.findAllByIdClient(idSrv)), ActionsDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> getVirtualServerByIdClient(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         Long idClient = Long.parseLong(serverRequest.pathVariable("id"));
         return ServerResponse.ok().body(Flux.fromIterable(virtualServerRepo.findAllByIdClient(idClient)), VirtualServerDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> getVirtualServerStatus(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return ServerResponse.ok().body(Flux.fromIterable(taskStatusRepo.findAll()), TaskStatusDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> getTaskStatus(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return ServerResponse.ok().body(Flux.fromIterable(virtualServerStatusRepo.findAll()), ClientDTO.class);
-    }
-
-    private <T> Mono<ServerResponse> postHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType) {
-        return postHandler(serverRequest, crudRepository, classType, null);
-    }
-
-    private <T> Mono<ServerResponse> postHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType, BiConsumer<WrapJsonToObject<T>, String> handler) {
-        cmpStatistic.incShareStatistic("WebRequest");
-        Mono<String> bodyData = serverRequest.bodyToMono(String.class);
-
-        return bodyData.flatMap(body -> {
-            JsonResponse jRet = new JsonResponse();
-            if (body != null && !body.isEmpty()) {
-                try {
-                    WrapJsonToObject<Map> test = Util.jsonToObject(body, Map.class);
-                    if (test.getObject().containsKey("action")) {
-                        String act = (String) test.getObject().get("action");
-                        if (act.equals("CreateVM")) {
-
-                            try {
-                                Util.telegramSend(SblApplication.getAvgVSrvAvailable(serverRepo, "CreateVM"));
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-
-                            int countAvailable = serverRepo.getAvailable().size();
-                            if (countAvailable == 0) {
-                                throw new Exception("No servers available");
-                            }
-                        }
-                    }
-                    WrapJsonToObject<T> wrapJsonToObject = handler != null ?
-                            Util.jsonToObjectOverflowProperties(body, classType)
-                            : Util.jsonToObject(body, classType);
-                    if (wrapJsonToObject.getException() == null) {
-                        synchronized (SblApplication.class) {
-                            if (handler != null) {
-                                handler.accept(wrapJsonToObject, body);
-                            }
-                            T o = wrapJsonToObject.getObject();
-                            saveWithoutCache(crudRepository, o);
-                            String[] split = o.getClass().getName().split("\\.");
-                            jRet.addData(split[split.length - 1].replace("DTO", ""), o);
-                        }
-                    } else {
-                        jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
-                    }
-                } catch (Exception e) {
-                    jRet.set(HttpStatus.EXPECTATION_FAILED, e.toString());
-                    e.printStackTrace();
-                }
-            } else {
-                jRet.set(HttpStatus.EXPECTATION_FAILED, "Empty request");
-            }
-            if (!jRet.status.equals(HttpStatus.OK)) {
-                cmpStatistic.incShareStatistic("WebError");
-            }
-            return ServerResponse.status(jRet.status).body(BodyInserters.fromValue(jRet.toString()));
-        });
     }
 
     @NonNull
     public Mono<ServerResponse> postClient(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return postHandler(serverRequest, clientRepo, ClientDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> postActions(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return postHandler(serverRequest, actionsRepo, ActionsDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> postDeleteTime(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return postHandler(serverRequest, deleteTimeRepo, DeleteTimeDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> postBillid(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return postHandler(serverRequest, billidRepo, BillidDTO.class);
+    }
+
+    public Mono<ServerResponse> postPromo(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
+        return postHandler(serverRequest, promoRepo, PromoDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> postServer(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return postHandler(serverRequest, serverRepo, ServerDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> postTask(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return postHandler(serverRequest, taskRepo, TaskDTO.class, (obj, body) -> obj.getObject().setTask(body));
     }
 
     @NonNull
     public Mono<ServerResponse> postVirtualServer(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return postHandler(serverRequest, virtualServerRepo, VirtualServerDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> postVirtualServerStatus(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return postHandler(serverRequest, virtualServerStatusRepo, VirtualServerStatusDTO.class);
     }
 
     @NonNull
     public Mono<ServerResponse> postTaskStatus(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return postHandler(serverRequest, taskStatusRepo, TaskStatusDTO.class);
+    }
+
+    public Mono<ServerResponse> getVdsAvailable(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
+        return ServerResponse.ok().body(BodyInserters.fromValue(SblApplication.getAvgVSrvAvailable(serverRepo, "check")));
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public Mono<ServerResponse> patchHandler(ServerRequest serverRequest, BiConsumer<String, JsonResponse> consumer) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         cmpStatistic.incShareStatistic("WebRequest");
         Mono<String> bodyData = serverRequest.bodyToMono(String.class);
         return bodyData.flatMap(body -> {
@@ -346,6 +375,9 @@ public class SblWebHandler {
     @Transactional(isolation = Isolation.SERIALIZABLE)
     @NonNull
     public Mono<ServerResponse> patchVirtualServer(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         System.out.println("Request");
         Long idVSrv = Long.parseLong(serverRequest.pathVariable("id"));
         return patchHandler(serverRequest, (body, jRet) -> {
@@ -407,6 +439,9 @@ public class SblWebHandler {
     @Transactional(isolation = Isolation.SERIALIZABLE)
     @NonNull
     public Mono<ServerResponse> patchTaskComplete(ServerRequest serverRequest) {
+        if (!checkDeny(serverRequest)) {
+            return accessDeny();
+        }
         return patchHandler(serverRequest, (body, jRet) -> {
             Util.logConsole(Thread.currentThread(), "::patchTaskComplete " + body);
             synchronized (SblApplication.class) {
@@ -540,11 +575,83 @@ public class SblWebHandler {
                 task.setStatus(0); //Пойдём в перенакат
             }
         }
-
     }
 
+    private <T> Mono<ServerResponse> postHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType, BiConsumer<WrapJsonToObject<T>, String> handler) {
+        cmpStatistic.incShareStatistic("WebRequest");
+        Mono<String> bodyData = serverRequest.bodyToMono(String.class);
 
-    public Mono<ServerResponse> getVdsAvailable(ServerRequest serverRequest) {
-        return ServerResponse.ok().body(BodyInserters.fromValue(SblApplication.getAvgVSrvAvailable(serverRepo, "check")));
+        return bodyData.flatMap(body -> {
+            JsonResponse jRet = new JsonResponse();
+            if (body != null && !body.isEmpty()) {
+                try {
+                    WrapJsonToObject<Map> test = Util.jsonToObject(body, Map.class);
+                    if (test.getObject().containsKey("action")) {
+                        String act = (String) test.getObject().get("action");
+                        if (act.equals("CreateVM")) {
+
+                            try {
+                                Util.telegramSend(SblApplication.getAvgVSrvAvailable(serverRepo, "CreateVM"));
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+
+                            int countAvailable = serverRepo.getAvailable().size();
+                            if (countAvailable == 0) {
+                                throw new Exception("No servers available");
+                            }
+                        }
+                    }
+                    WrapJsonToObject<T> wrapJsonToObject = handler != null ?
+                            Util.jsonToObjectOverflowProperties(body, classType)
+                            : Util.jsonToObject(body, classType);
+                    if (wrapJsonToObject.getException() == null) {
+                        synchronized (SblApplication.class) {
+                            if (handler != null) {
+                                handler.accept(wrapJsonToObject, body);
+                            }
+                            T o = wrapJsonToObject.getObject();
+                            saveWithoutCache(crudRepository, o);
+                            String[] split = o.getClass().getName().split("\\.");
+                            jRet.addData(split[split.length - 1].replace("DTO", ""), o);
+                        }
+                    } else {
+                        jRet.set(HttpStatus.EXPECTATION_FAILED, wrapJsonToObject.getException().toString());
+                    }
+                } catch (Exception e) {
+                    jRet.set(HttpStatus.EXPECTATION_FAILED, e.toString());
+                    e.printStackTrace();
+                }
+            } else {
+                jRet.set(HttpStatus.EXPECTATION_FAILED, "Empty request");
+            }
+            if (!jRet.status.equals(HttpStatus.OK)) {
+                cmpStatistic.incShareStatistic("WebError");
+            }
+            return ServerResponse.status(jRet.status).body(BodyInserters.fromValue(jRet.toString()));
+        });
     }
+
+    private <T> Mono<ServerResponse> postHandler(ServerRequest serverRequest, CrudRepository crudRepository, Class<T> classType) {
+        return postHandler(serverRequest, crudRepository, classType, null);
+    }
+
+    private boolean checkDeny(ServerRequest serverRequest) {
+        Iterable<ServerDTO> all = serverRepo.findAll();
+        List<String> ips = new ArrayList<>();
+        for (ServerDTO serverDTO : all) {
+            ips.add("/" + serverDTO.getIp());
+        }
+        ips.add("/127.0.0.1");
+        String requestIp = serverRequest.remoteAddress().get().getAddress().toString();
+        if (!ips.contains(requestIp)) {
+            Util.telegramSend("FORBIDDEN for ip: " + requestIp + "; path: " + serverRequest.path());
+        }
+        return ips.contains(requestIp);
+    }
+
+    private Mono<ServerResponse> accessDeny() {
+        return ServerResponse.status(HttpStatus.FORBIDDEN).body(BodyInserters.fromValue("{\"status\":\"FORBIDDEN\"}"));
+    }
+
 }

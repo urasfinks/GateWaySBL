@@ -33,6 +33,7 @@ public class WebRouter {
                 .GET("/ActionsByIdClient/{id}", sblWebHandler::getActionsByIdClient)
                 .GET("/DeleteTimeByIdVirtualServer/{id}", sblWebHandler::getDeleteTimeByIdVirtualServer)
                 .GET("/BillidByIdClient/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getBillidByIdClient)
+                .GET("/PromoByPromoCode/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getPromoCode)
                 .GET("/TaskByIdClient/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getTaskByIdClient)
                 .GET("/VirtualServerByIdClient/{id}", accept(MediaType.TEXT_PLAIN), sblWebHandler::getVirtualServerByIdClient)
 
@@ -44,6 +45,7 @@ public class WebRouter {
                 .POST("/DeleteTime", accept(MediaType.TEXT_PLAIN), sblWebHandler::postDeleteTime)
                 .POST("/Client", accept(MediaType.TEXT_PLAIN), sblWebHandler::postClient)
                 .POST("/Billid", accept(MediaType.TEXT_PLAIN), sblWebHandler::postBillid)
+                .POST("/Promo", accept(MediaType.TEXT_PLAIN), sblWebHandler::postPromo)
                 .POST("/Server", accept(MediaType.TEXT_PLAIN), sblWebHandler::postServer)
                 .POST("/Task", accept(MediaType.TEXT_PLAIN), sblWebHandler::postTask)
                 //.POST("/VirtualServer", sblWebHandler::postVirtualServer) //Only native API
